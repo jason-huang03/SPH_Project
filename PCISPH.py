@@ -14,7 +14,7 @@ class PCISPHSolver3D():
 
         self.surface_tension = 0.01
 
-        self.max_iterations = 100
+        self.max_iterations = 10
 
         self.dt = ti.field(float, shape=())
         self.dt[None] = 1e-4
@@ -76,11 +76,13 @@ class PCISPHSolver3D():
             for i in ti.static(range(self.container.dim)):
                 sum_nabla[i] = ret_i[i]
 
+            volume_i = self.container.particle_original_volumes[p_i]
+
             self.container.particle_pcisph_k[p_i] = (
                 - 0.5 
                 / (ti.math.dot(sum_nabla, sum_nabla) + ret_i[3]) 
-                / (self.dt[None] * self.container.particle_original_volumes[p_i])
-                / (self.dt[None] * self.container.particle_original_volumes[p_i]) 
+                / (self.dt[None] * volume_i)
+                / (self.dt[None] * volume_i) 
             )
 
 
@@ -217,13 +219,82 @@ class PCISPHSolver3D():
             R_mod = R.norm()
             ret += self.container.particle_original_volumes[p_j] * self.cubic_kernel(R_mod)
 
+    @ti.kernel
+    def compute_density_change(self):
+        for p_i in range(self.container.particle_num[None]):
+            density_change_i = 0.0
+            self.container.for_all_neighbors(p_i, self.compute_density_change_task, density_change_i)
+            density_change_i *= self.dt[None]
+            self.container.particle_densities_change[p_i] = density_change_i
+
+    @ti.func
+    def compute_density_change_task(self, p_i, p_j, ret: ti.template()):
+        pos_i = self.container.particle_positions[p_i]
+        pos_j = self.container.particle_positions[p_j]
+        R = pos_i - pos_j
+        nabla_ij = self.cubic_kernel_derivative(R)
+        a_ij = self.container.particle_pressure_accelerations[p_i] - self.container.particle_pressure_accelerations[p_j]
+        ret += self.container.particle_masses[p_j] * ti.math.dot(a_ij, nabla_ij) * self.dt[None]
+
+    @ti.kernel
+    def update_pressure(self):
+        for p_i in range(self.container.particle_num[None]):
+            # ! how to treat sparse area?
+            if self.container.particle_densities_star > self.density_0 + 1e-5:
+                self.container.particle_pressures[p_i] += self.container.particle_pcisph_k[p_i] * (self.density_0 - self.container.particle_densities_star[p_i])
+                ret = 0.0
+                self.container.for_all_neighbors(p_i, self.update_pressure_task, ret)
+                self.container.particle_pressures[p_i] += ret * self.dt[None]
+
+
+    @ti.func
+    def update_pressure_task(self, p_i, p_j, ret: ti.template()):
+        a_ij = self.container.particle_pressure_accelerations[p_i] - self.container.particle_pressure_accelerations[p_j]
+        R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
+        nabla_ij = self.cubic_kernel_derivative(R)
+        ret += (
+            - self.container.particle_pcisph_k[p_i]
+            * self.dt[None]
+            * ti.math.dot(a_ij, nabla_ij)
+            * self.container.particle_masses[p_j]
+        )
+
+    @ti.kernel
+    def compute_density_error(self) -> ti.f32:
+        error = 0.0
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_densities_star[p_i] > self.density_0 + 1e-5:
+                error += (
+                    (self.density_0 - self.container.particle_densities_star[p_i] + self.container.particle_densities_change[p_i]) 
+                    / self.density_0
+                )
+
+        error = error / self.container.particle_num[None]
+        return error
+
     def refine(self):
         num_itr = 0
         density_average_error = 0.0
 
         while num_itr < 1 or num_itr < self.max_iterations:
             self.compute_pressure_acceleration()
-            raise NotImplementedError
+            self.compute_density_change()
+            density_average_error = self.compute_density_error()
+            density_average_error = ti.abs(density_average_error)
+
+            if density_average_error < 0.01:
+                break
+            num_itr += 1
+        # if density_average_error > 10:
+        #     for p_i in range(self.container.particle_num[None]):
+        #         e = (
+        #             (self.density_0 - self.container.particle_densities_star[p_i] + self.container.particle_densities_change[p_i]) 
+        #             / self.density_0)
+        #         if ti.abs(e) > 10:
+        #             print(f"particle {p_i}, density error: {e}, density: {self.container.particle_densities_star[p_i]}, density change: {self.container.particle_densities_change[p_i]}, density_star: {self.container.particle_densities_star[p_i]}")
+                    
+        #     breakpoint()
+        print(f"Density average error ratio: {density_average_error}, num_itr: {num_itr}")
 
     @ti.func
     def simulate_collisions(self, p_i, vec):
@@ -290,8 +361,7 @@ class PCISPHSolver3D():
         self.compute_non_pressure_acceleration()
         self.compute_density_star()
         self.compute_pressure()
-        # self.refine()
-        self.compute_pressure_acceleration()
+        self.refine()
 
         self.update_velocities()
         self.update_position()

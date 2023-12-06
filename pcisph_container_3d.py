@@ -77,6 +77,7 @@ class PCISPHContainer3D:
         self.particle_masses = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities_star = ti.field(dtype=float, shape=self.particle_max_num)
+        self.particle_densities_change = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_pressures = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_materials = ti.field(dtype=int, shape=self.particle_max_num)
         self.particle_colors = ti.Vector.field(3, dtype=int, shape=self.particle_max_num)
