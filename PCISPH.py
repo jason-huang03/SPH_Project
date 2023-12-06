@@ -3,7 +3,7 @@ import numpy as np
 from pcisph_container_3d import PCISPHContainer3D
 
 @ti.data_oriented
-class WCSPHSolver3D():
+class PCISPHSolver3D():
     def __init__(self, container: PCISPHContainer3D):
         self.container = container
         self.g = ti.Vector([0.0, -9.81, 0.0])  # Gravity
@@ -14,14 +14,11 @@ class WCSPHSolver3D():
 
         self.surface_tension = 0.01
 
+        self.max_iterations = 100
+
         self.dt = ti.field(float, shape=())
         self.dt[None] = 1e-4
         self.dt[None] = self.container.cfg.get_cfg("timeStepSize")
-
-        self.gamma = 7.0
-        self.stiffness = 50000.0
-
-
 
     @ti.func
     def cubic_kernel(self, R_mod):
@@ -80,9 +77,10 @@ class WCSPHSolver3D():
                 sum_nabla[i] = ret_i[i]
 
             self.container.particle_pcisph_k[p_i] = (
-                - 0.5 / self.dt[None] / self.dt[None] 
-                / (ti.dot(sum_nabla, sum_nabla) + ret_i[3]) 
-                / self.container.particle_original_volumes[p_i] / self.container.particle_original_volumes[p_i]
+                - 0.5 
+                / (ti.math.dot(sum_nabla, sum_nabla) + ret_i[3]) 
+                / (self.dt[None] * self.container.particle_original_volumes[p_i])
+                / (self.dt[None] * self.container.particle_original_volumes[p_i]) 
             )
 
 
@@ -96,15 +94,16 @@ class WCSPHSolver3D():
         ret[0] += nabla_ij[0]
         ret[1] += nabla_ij[1]
         ret[2] += nabla_ij[2]
-        ret[3] += ti.dot(nabla_ij, nabla_ij)
+        ret[3] += ti.math.dot(nabla_ij, nabla_ij)
        
 
     @ti.kernel
     def compute_density_star(self):
         for p_i in range(self.container.particle_num[None]):
             density_i = 0.0
-            density_i = self.container.particle_densities[p_i]
             self.container.for_all_neighbors(p_i, self.compute_density_star_task, density_i)
+            density_i *= self.dt[None]
+            density_i += self.container.particle_densities[p_i]
             self.container.particle_densities_star[p_i] = density_i
 
     
@@ -117,8 +116,8 @@ class WCSPHSolver3D():
         v_ij = self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j]
         a_ij = self.container.particle_accelerations[p_i] - self.container.particle_accelerations[p_j]
         ret += (
-            m_j * ti.dot(v_ij, self.cubic_kernel_derivative(R))
-            + m_j * self.dt[None] * ti.dot(a_ij, self.cubic_kernel_derivative(R))
+            m_j * ti.math.dot(v_ij, self.cubic_kernel_derivative(R))
+            + m_j * self.dt[None] * ti.math.dot(a_ij, self.cubic_kernel_derivative(R))
         )
 
 
@@ -129,6 +128,9 @@ class WCSPHSolver3D():
                 self.container.particle_pcisph_k[p_i] 
                 * (self.density_0 - self.container.particle_densities_star[p_i])
             )
+
+            if self.container.particle_pressures[p_i] < 0.0:
+                self.container.particle_pressures[p_i] = 0.0
 
     @ti.kernel
     def compute_non_pressure_acceleration(self):
@@ -179,7 +181,7 @@ class WCSPHSolver3D():
         for p_i in range(self.container.particle_num[None]):
             ret_i = ti.Vector([0.0, 0.0, 0.0])
             self.container.for_all_neighbors(p_i, self.compute_pressure_acceleration_task, ret_i)
-            self.container.particle_accelerations[p_i] += ret_i
+            self.container.particle_pressure_accelerations[p_i] = ret_i
 
 
     @ti.func
@@ -190,7 +192,7 @@ class WCSPHSolver3D():
         den_j = self.container.particle_densities[p_j]
         R = pos_i - pos_j
         ret += (
-            - den_i / self.density_0 * self.container.particle_masses[p_j] * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_j] / (den_j * den_j)) * self.cubic_kernel_derivative(R)
+            - self.container.particle_masses[p_j] * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_j] / (den_j * den_j)) * self.cubic_kernel_derivative(R)
         )
 
     @ti.kernel
@@ -216,7 +218,12 @@ class WCSPHSolver3D():
             ret += self.container.particle_original_volumes[p_j] * self.cubic_kernel(R_mod)
 
     def refine(self):
-        raise NotImplementedError
+        num_itr = 0
+        density_average_error = 0.0
+
+        while num_itr < 1 or num_itr < self.max_iterations:
+            self.compute_pressure_acceleration()
+            raise NotImplementedError
 
     @ti.func
     def simulate_collisions(self, p_i, vec):
@@ -263,7 +270,7 @@ class WCSPHSolver3D():
         update velocity for each particle from acceleration
         """
         for p_i in range(self.container.particle_num[None]):
-            self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i]
+            self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i] + self.dt[None] * self.container.particle_pressure_accelerations[p_i]
 
     @ti.kernel
     def update_position(self):
@@ -276,6 +283,7 @@ class WCSPHSolver3D():
 
 
     def step(self):
+        
         self.container.prepare_neighborhood_search()
         self.compute_pcisph_k()
         self.compute_density()
@@ -283,8 +291,8 @@ class WCSPHSolver3D():
         self.compute_density_star()
         self.compute_pressure()
         # self.refine()
-
         self.compute_pressure_acceleration()
+
         self.update_velocities()
         self.update_position()
 
