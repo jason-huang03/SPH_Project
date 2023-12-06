@@ -4,9 +4,12 @@ from dfsph_container_3d import DFSPHContainer3D
 
 @ti.data_oriented
 class DFSPHSolver3D():
-    def __init__(self, particle_system: DFSPHContainer3D):
-        self.container = particle_system
-        self.g = ti.Vector([0.0, -9.81, 0.0])  # Gravity
+    def __init__(self, container: DFSPHContainer3D):
+        self.container = container
+        if self.container.dim == 2:
+            self.g = ti.Vector([0.0, -9.81])
+        elif self.container.dim == 3:
+            self.g = ti.Vector([0.0, -9.81, 0.0])  # Gravity
 
         self.viscosity = 0.01  # viscosity
 
@@ -27,7 +30,7 @@ class DFSPHSolver3D():
         self.max_error = 0.05
     
 
-
+    ################# kernel #################
     @ti.func
     def cubic_kernel(self, R_mod):
         res = ti.cast(0.0, ti.f32)
@@ -75,22 +78,22 @@ class DFSPHSolver3D():
                 res = k * (-factor * factor) * grad_q
         return res
 
-
+    ################# End of kernel #################
 
     @ti.kernel
-    def compute_non_pressure_forces(self):
+    def compute_non_pressure_acceleration(self):
         for p_i in range(self.container.particle_num[None]):
             ############## Body force ###############
             # Add body force
-            d_v = ti.Vector(self.g)
-            self.container.particle_accelerations[p_i] = d_v
+            a_i = ti.Vector(self.g)
+            self.container.particle_accelerations[p_i] = a_i
             if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.container.for_all_neighbors(p_i, self.compute_non_pressure_forces_task, d_v)
-                self.container.particle_accelerations[p_i] = d_v
+                self.container.for_all_neighbors(p_i, self.compute_non_pressure_acceleration_task, a_i)
+                self.container.particle_accelerations[p_i] = a_i
 
 
     @ti.func
-    def compute_non_pressure_forces_task(self, p_i, p_j, ret: ti.template()):
+    def compute_non_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
         pos_i = self.container.particle_positions[p_i]
         
         ############## Surface Tension ###############
@@ -432,7 +435,7 @@ class DFSPHSolver3D():
 
     def step(self):
 
-        self.compute_non_pressure_forces()
+        self.compute_non_pressure_acceleration()
         self.update_velocities()
         self.correct_density_error()
         self.update_position()
