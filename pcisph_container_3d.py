@@ -21,7 +21,7 @@ class PCISPHContainer3D:
         self.dim = len(self.domain_size)
 
         # Material
-        self.material_solid = 0
+        self.material_rigid = 0
         self.material_fluid = 1
 
         self.dx = 0.01  # particle radius
@@ -73,7 +73,7 @@ class PCISPHContainer3D:
         self.particle_velocities = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_accelerations = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_pressure_accelerations = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
-        self.particle_original_volumes = ti.field(dtype=float, shape=self.particle_max_num)
+        self.particle_reference_volumes = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_masses = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities_star = ti.field(dtype=float, shape=self.particle_max_num)
@@ -137,7 +137,7 @@ class PCISPHContainer3D:
         self.x_0[p] = x
         self.particle_velocities[p] = v
         self.particle_densities[p] = density
-        self.particle_original_volumes[p] = self.m_V0
+        self.particle_reference_volumes[p] = self.m_V0
         self.particle_masses[p] = self.m_V0 * density
         self.particle_pressures[p] = pressure
         self.particle_materials[p] = material
@@ -210,12 +210,12 @@ class PCISPHContainer3D:
 
     @ti.func
     def is_static_rigid_body(self, p):
-        return self.particle_materials[p] == self.material_solid and (not self.particle_is_dynamic[p])
+        return self.particle_materials[p] == self.material_rigid and (not self.particle_is_dynamic[p])
 
 
     @ti.func
     def is_dynamic_rigid_body(self, p):
-        return self.particle_materials[p] == self.material_solid and self.particle_is_dynamic[p]
+        return self.particle_materials[p] == self.material_rigid and self.particle_is_dynamic[p]
     
 
     @ti.kernel
@@ -245,7 +245,7 @@ class PCISPHContainer3D:
             self.x_0_buffer[new_index] = self.x_0[I]
             self.particle_positions_buffer[new_index] = self.particle_positions[I]
             self.particle_velocities_buffer[new_index] = self.particle_velocities[I]
-            self.particle_volumes_buffer[new_index] = self.particle_original_volumes[I]
+            self.particle_volumes_buffer[new_index] = self.particle_reference_volumes[I]
             self.particle_masses_buffer[new_index] = self.particle_masses[I]
             self.particle_densities_buffer[new_index] = self.particle_densities[I]
             self.particle_materials_buffer[new_index] = self.particle_materials[I]
@@ -258,7 +258,7 @@ class PCISPHContainer3D:
             self.x_0[I] = self.x_0_buffer[I]
             self.particle_positions[I] = self.particle_positions_buffer[I]
             self.particle_velocities[I] = self.particle_velocities_buffer[I]
-            self.particle_original_volumes[I] = self.particle_volumes_buffer[I]
+            self.particle_reference_volumes[I] = self.particle_volumes_buffer[I]
             self.particle_masses[I] = self.particle_masses_buffer[I]
             self.particle_densities[I] = self.particle_densities_buffer[I]
             self.particle_materials[I] = self.particle_materials_buffer[I]

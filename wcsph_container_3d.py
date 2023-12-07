@@ -21,7 +21,7 @@ class WCSPHContainer3D:
         self.dim = len(self.domain_size)
 
         # Material
-        self.material_solid = 0
+        self.material_rigid = 0
         self.material_fluid = 1
 
         self.dx = 0.01  # particle radius
@@ -47,6 +47,7 @@ class WCSPHContainer3D:
         #### Process Fluid Blocks ####
         fluid_blocks = self.cfg.get_fluid_blocks()
         fluid_particle_num = 0
+        rigid_body_particle_num = 0
         for fluid in fluid_blocks:
             particle_num = self.compute_cube_particle_num(fluid["start"], fluid["end"])
             fluid["particleNum"] = particle_num
@@ -54,10 +55,21 @@ class WCSPHContainer3D:
             fluid_particle_num += particle_num
 
 
+        #### Process Rigid Bodies ####
+        rigid_bodies = self.cfg.get_rigid_bodies()
+        for rigid_body in rigid_bodies:
+            voxelized_points_np = self.load_rigid_body(rigid_body)
+            rigid_body["particleNum"] = voxelized_points_np.shape[0]
+            rigid_body["voxelizedPoints"] = voxelized_points_np
+            self.object_collection[rigid_body["objectId"]] = rigid_body
+            rigid_body_particle_num += voxelized_points_np.shape[0]
+        
+        
         self.fluid_particle_num = fluid_particle_num
-        self.particle_max_num = fluid_particle_num # TODO: make it be able to add particles
+        self.rigid_body_particle_num = rigid_body_particle_num
+        self.particle_max_num = fluid_particle_num + rigid_body_particle_num # TODO: make it able to add particles
 
-        print(f"Current particle num: {self.particle_num[None]}, Particle max num: {self.particle_max_num}")
+        print(f"Fluid particle num: {self.fluid_particle_num}, Rigid body particle num: {self.rigid_body_particle_num}")
 
         #========== Allocate memory ==========#
         # Particle num of each grid
@@ -72,7 +84,7 @@ class WCSPHContainer3D:
         self.x_0 = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_velocities = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_accelerations = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
-        self.particle_original_volumes = ti.field(dtype=float, shape=self.particle_max_num)
+        self.particle_reference_volumes = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_masses = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_pressures = ti.field(dtype=float, shape=self.particle_max_num)
@@ -124,6 +136,32 @@ class WCSPHContainer3D:
                           color=color,
                           material=1) # 1 indicates fluid
 
+
+        # Rigid body
+        for rigid_body in rigid_bodies:
+            obj_id = rigid_body["objectId"]
+            self.object_id_rigid_body.add(obj_id)
+            num_particles_obj = rigid_body["particleNum"]
+            voxelized_points_np = rigid_body["voxelizedPoints"]
+            is_dynamic = rigid_body["isDynamic"]
+            if is_dynamic:
+                velocity = np.array(rigid_body["velocity"], dtype=np.float32)
+            else:
+                velocity = np.array([0.0 for _ in range(self.dim)], dtype=np.float32)
+            density = rigid_body["density"]
+            color = np.array(rigid_body["color"], dtype=np.int32)
+
+            self.add_particles(obj_id,
+                               num_particles_obj,
+                               np.array(voxelized_points_np, dtype=np.float32), # position
+                               np.stack([velocity for _ in range(num_particles_obj)]), # velocity
+                               density * np.ones(num_particles_obj, dtype=np.float32), # density
+                               np.zeros(num_particles_obj, dtype=np.float32), # pressure
+                               np.array([0 for _ in range(num_particles_obj)], dtype=np.int32), # material is solid
+                               is_dynamic * np.ones(num_particles_obj, dtype=np.int32), # is_dynamic
+                               np.stack([color for _ in range(num_particles_obj)])) # color
+
+
     @ti.func
     def add_particle(self, p, obj_id, x, v, density, pressure, material, is_dynamic, color):
         self.particle_object_id[p] = obj_id
@@ -131,7 +169,7 @@ class WCSPHContainer3D:
         self.x_0[p] = x
         self.particle_velocities[p] = v
         self.particle_densities[p] = density
-        self.particle_original_volumes[p] = self.m_V0
+        self.particle_reference_volumes[p] = self.m_V0
         self.particle_masses[p] = self.m_V0 * density
         self.particle_pressures[p] = pressure
         self.particle_materials[p] = material
@@ -204,12 +242,12 @@ class WCSPHContainer3D:
 
     @ti.func
     def is_static_rigid_body(self, p):
-        return self.particle_materials[p] == self.material_solid and (not self.particle_is_dynamic[p])
+        return self.particle_materials[p] == self.material_rigid and (not self.particle_is_dynamic[p])
 
 
     @ti.func
     def is_dynamic_rigid_body(self, p):
-        return self.particle_materials[p] == self.material_solid and self.particle_is_dynamic[p]
+        return self.particle_materials[p] == self.material_rigid and self.particle_is_dynamic[p]
     
 
     @ti.kernel
@@ -239,7 +277,7 @@ class WCSPHContainer3D:
             self.x_0_buffer[new_index] = self.x_0[I]
             self.particle_positions_buffer[new_index] = self.particle_positions[I]
             self.particle_velocities_buffer[new_index] = self.particle_velocities[I]
-            self.particle_volumes_buffer[new_index] = self.particle_original_volumes[I]
+            self.particle_volumes_buffer[new_index] = self.particle_reference_volumes[I]
             self.particle_masses_buffer[new_index] = self.particle_masses[I]
             self.particle_densities_buffer[new_index] = self.particle_densities[I]
             self.particle_materials_buffer[new_index] = self.particle_materials[I]
@@ -252,7 +290,7 @@ class WCSPHContainer3D:
             self.x_0[I] = self.x_0_buffer[I]
             self.particle_positions[I] = self.particle_positions_buffer[I]
             self.particle_velocities[I] = self.particle_velocities_buffer[I]
-            self.particle_original_volumes[I] = self.particle_volumes_buffer[I]
+            self.particle_reference_volumes[I] = self.particle_volumes_buffer[I]
             self.particle_masses[I] = self.particle_masses_buffer[I]
             self.particle_densities[I] = self.particle_densities_buffer[I]
             self.particle_materials[I] = self.particle_materials_buffer[I]
@@ -313,6 +351,36 @@ class WCSPHContainer3D:
         }
     
 
+    def load_rigid_body(self, rigid_body):
+        obj_id = rigid_body["objectId"]
+        mesh = tm.load(rigid_body["geometryFile"])
+        mesh.apply_scale(rigid_body["scale"])
+        offset = np.array(rigid_body["translation"])
+
+        angle = rigid_body["rotationAngle"] / 360 * 2 * 3.1415926
+        direction = rigid_body["rotationAxis"]
+        rot_matrix = tm.transformations.rotation_matrix(angle, direction, mesh.vertices.mean(axis=0))
+        mesh.apply_transform(rot_matrix)
+        mesh.vertices += offset
+        
+        # Backup the original mesh for exporting obj
+        mesh_backup = mesh.copy()
+        rigid_body["mesh"] = mesh_backup
+        rigid_body["restPosition"] = mesh_backup.vertices
+        rigid_body["restCenterOfMass"] = mesh_backup.vertices.mean(axis=0)
+        is_success = tm.repair.fill_holes(mesh)
+            # print("Is the mesh successfully repaired? ", is_success)
+        voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter)
+        voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).fill()
+        # voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).hollow()
+        # voxelized_mesh.show()
+        voxelized_points_np = voxelized_mesh.points
+        print(f"rigid body {obj_id} num: {voxelized_points_np.shape[0]}")
+
+        # voxelized_points_np = tm.sample.sample_surface_even(mesh, 4000)[0]
+        
+        return voxelized_points_np
+
 
     def compute_cube_particle_num(self, start, end):
         num_dim = []
@@ -332,6 +400,9 @@ class WCSPHContainer3D:
                  density=None,
                  pressure=None,
                  velocity=None):
+        """
+        add particles spaced by particle diameter
+        """
 
         num_dim = []
         for i in range(self.dim):

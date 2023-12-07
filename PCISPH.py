@@ -14,7 +14,8 @@ class PCISPHSolver3D():
 
         self.surface_tension = 0.01
 
-        self.max_iterations = 10
+        self.max_iterations = 20
+        self.eta = 0.005
 
         self.dt = ti.field(float, shape=())
         self.dt[None] = 1e-4
@@ -76,7 +77,7 @@ class PCISPHSolver3D():
             for i in ti.static(range(self.container.dim)):
                 sum_nabla[i] = ret_i[i]
 
-            volume_i = self.container.particle_original_volumes[p_i]
+            volume_i = self.container.particle_reference_volumes[p_i]
 
             self.container.particle_pcisph_k[p_i] = (
                 - 0.5 
@@ -203,7 +204,7 @@ class PCISPHSolver3D():
         compute density for each particle from mass of neighbors
         """
         for p_i in range(self.container.particle_num[None]):
-            self.container.particle_densities[p_i] = self.container.particle_original_volumes[p_i] * self.cubic_kernel(0.0)
+            self.container.particle_densities[p_i] = self.container.particle_reference_volumes[p_i] * self.cubic_kernel(0.0)
             density_i = 0.0
             self.container.for_all_neighbors(p_i, self.compute_density_task, density_i)
             self.container.particle_densities[p_i] += density_i
@@ -217,7 +218,7 @@ class PCISPHSolver3D():
             pos_j = self.container.particle_positions[p_j]
             R = pos_i - pos_j
             R_mod = R.norm()
-            ret += self.container.particle_original_volumes[p_j] * self.cubic_kernel(R_mod)
+            ret += self.container.particle_reference_volumes[p_j] * self.cubic_kernel(R_mod)
 
     @ti.kernel
     def compute_density_change(self):
@@ -282,7 +283,7 @@ class PCISPHSolver3D():
             density_average_error = self.compute_density_error()
             density_average_error = ti.abs(density_average_error)
 
-            if density_average_error < 0.01:
+            if density_average_error < self.eta:
                 break
             num_itr += 1
         # if density_average_error > 10:
