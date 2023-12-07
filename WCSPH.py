@@ -89,9 +89,6 @@ class WCSPHSolver3D():
             R_mod = R.norm()
             ret += self.cubic_kernel(R_mod)
 
-       
-
-
     @ti.kernel
     def compute_non_pressure_acceleration(self):
         for p_i in range(self.container.particle_num[None]):
@@ -258,6 +255,7 @@ class WCSPHSolver3D():
                     self.simulate_collisions(
                             p_i, collision_normal / collision_normal_length)
 
+
     @ti.kernel
     def update_velocities(self):
         """
@@ -277,6 +275,42 @@ class WCSPHSolver3D():
                 self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
     
 
+    @ti.kernel
+    def update_rigid_body(self):
+        self.container.rigid_body_forces.fill(0.0)
+        # TODO:deal with torque
+        
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_rigid:
+                if self.container.particle_is_dynamic[p_i]:
+                    object_id = self.container.particle_object_ids[p_i]
+                    self.container.rigid_body_forces[object_id] += self.container.particle_densities[p_i] * self.container.V0 * self.container.particle_accelerations[p_i]
+        
+        for obj_i in range(self.container.rigid_body_num[None]):
+            if self.container.rigid_body_is_dynamic[obj_i]:
+                delta_v = self.dt[None] * self.container.rigid_body_forces[obj_i] / self.container.rigid_body_masses[obj_i]
+                self.container.rigid_body_velocities[obj_i] += delta_v
+                delta_x = self.dt[None] * self.container.rigid_body_velocities[obj_i]
+                self.container.rigid_body_centers_of_mass[obj_i] += delta_x
+
+        # for obj_i in range(self.container.rigid_body_num[None]):
+        #     if self.container.rigid_body_is_dynamic[obj_i]:
+        #         self.container.rigid_body_velocities[obj_i] += self.dt[None] * self.g
+        #         self.container.rigid_body_centers_of_mass[obj_i] += self.dt[None] * self.container.rigid_body_velocities[obj_i]
+
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_rigid:
+                if self.container.particle_is_dynamic[p_i]:
+                    object_id = self.container.particle_object_ids[p_i]
+                    self.container.particle_velocities[p_i] = self.container.rigid_body_velocities[object_id]
+                    self.container.particle_positions[p_i] = self.container.rigid_body_centers_of_mass[object_id] + self.container.rigid_particle_original_positions[p_i] - self.container.rigid_body_original_centers_of_mass[object_id]
+
+        # for p_i in range(self.container.particle_num[None]):
+        #     if self.container.particle_materials[p_i] == self.container.material_rigid:
+        #         if self.container.particle_is_dynamic[p_i]:
+        #             self.container.particle_velocities[p_i] += self.g * self.dt[None]
+        #             self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
+
 
     def step(self):
         self.container.prepare_neighborhood_search()
@@ -287,4 +321,5 @@ class WCSPHSolver3D():
         self.compute_pressure_acceleration()
         self.update_velocities()
         self.update_position()
+        self.update_rigid_body()
         self.enforce_boundary_3D(self.container.material_fluid)

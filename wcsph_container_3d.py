@@ -29,7 +29,7 @@ class WCSPHContainer3D:
 
         self.particle_diameter = 2 * self.dx
         self.dh = self.dx * 4.0  # support radius
-        self.m_V0 = 0.8 * self.particle_diameter ** self.dim
+        self.V0 = 0.8 * self.particle_diameter ** self.dim
 
         self.particle_num = ti.field(int, shape=())
 
@@ -57,6 +57,8 @@ class WCSPHContainer3D:
 
         #### Process Rigid Bodies ####
         rigid_bodies = self.cfg.get_rigid_bodies()
+        num_rigid_bodies = len(rigid_bodies)
+        print(f"Number of rigid bodies: {num_rigid_bodies}")
         for rigid_body in rigid_bodies:
             voxelized_points_np = self.load_rigid_body(rigid_body)
             rigid_body["particleNum"] = voxelized_points_np.shape[0]
@@ -79,9 +81,8 @@ class WCSPHContainer3D:
         self.prefix_sum_executor = ti.algorithms.PrefixSumExecutor(self.grid_num_particles.shape[0])
 
         # Particle related properties
-        self.particle_object_id = ti.field(dtype=int, shape=self.particle_max_num)
+        self.particle_object_ids = ti.field(dtype=int, shape=self.particle_max_num)
         self.particle_positions = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
-        self.x_0 = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_velocities = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_accelerations = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_reference_volumes = ti.field(dtype=float, shape=self.particle_max_num)
@@ -92,10 +93,25 @@ class WCSPHContainer3D:
         self.particle_colors = ti.Vector.field(3, dtype=int, shape=self.particle_max_num)
         self.particle_is_dynamic = ti.field(dtype=int, shape=self.particle_max_num)
 
+        # Rigid body related properties
+        self.rigid_body_num = ti.field(dtype=int, shape=()) # TODO: make it able to grow
+        self.rigid_body_num[None] = num_rigid_bodies
+
+        self.rigid_particle_original_positions = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
+        self.rigid_body_is_dynamic = ti.field(dtype=int, shape=10)
+        self.rigid_body_original_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_masses = ti.field(dtype=float, shape=10)
+        self.rigid_body_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_rotations = ti.Matrix.field(self.dim, self.dim, dtype=float, shape=10)
+        self.rigid_body_forces = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_torques = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_velocities = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_angular_velocity = ti.Vector.field(self.dim, dtype=float, shape=10)
+
         # Buffer for sort
-        self.particle_object_id_buffer = ti.field(dtype=int, shape=self.particle_max_num)
+        self.particle_object_ids_buffer = ti.field(dtype=int, shape=self.particle_max_num)
         self.particle_positions_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
-        self.x_0_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
+        self.rigid_particle_original_positions_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_velocities_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_volumes_buffer = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_masses_buffer = ti.field(dtype=float, shape=self.particle_max_num)
@@ -160,17 +176,41 @@ class WCSPHContainer3D:
                                np.array([0 for _ in range(num_particles_obj)], dtype=np.int32), # material is solid
                                is_dynamic * np.ones(num_particles_obj, dtype=np.int32), # is_dynamic
                                np.stack([color for _ in range(num_particles_obj)])) # color
+        
+            self.rigid_body_masses[obj_id] = self.compute_rigid_body_mass(obj_id)
+            self.rigid_body_is_dynamic[obj_id] = is_dynamic
+            rigid_com = self.compute_rigid_body_center_of_mass(obj_id)
+            self.rigid_body_centers_of_mass[obj_id] = rigid_com
+            self.rigid_body_original_centers_of_mass[obj_id] = rigid_com
+            self.rigid_body_velocities[obj_id] = velocity
 
+
+    @ti.kernel
+    def compute_rigid_body_mass(self, object_id: int) -> ti.f32:
+        sum_m = 0.0
+        for p_i in range(self.particle_num[None]):
+            if self.particle_object_ids[p_i] == object_id:
+                sum_m += self.particle_densities[p_i] * self.V0
+        return sum_m
+
+    @ti.kernel
+    def compute_rigid_body_center_of_mass(self, object_id: int) -> ti.types.vector(3, ti.f32):
+        sum_xm = ti.Vector([0.0, 0.0, 0.0])
+        for p_i in range(self.particle_num[None]):
+            if self.particle_object_ids[p_i] == object_id:
+                sum_xm += self.particle_positions[p_i] * self.particle_densities[p_i] * self.V0
+        
+        return sum_xm / self.rigid_body_masses[object_id]
 
     @ti.func
     def add_particle(self, p, obj_id, x, v, density, pressure, material, is_dynamic, color):
-        self.particle_object_id[p] = obj_id
+        self.particle_object_ids[p] = obj_id
         self.particle_positions[p] = x
-        self.x_0[p] = x
+        self.rigid_particle_original_positions[p] = x
         self.particle_velocities[p] = v
         self.particle_densities[p] = density
-        self.particle_reference_volumes[p] = self.m_V0
-        self.particle_masses[p] = self.m_V0 * density
+        self.particle_reference_volumes[p] = self.V0
+        self.particle_masses[p] = self.V0 * density
         self.particle_pressures[p] = pressure
         self.particle_materials[p] = material
         self.particle_is_dynamic[p] = is_dynamic
@@ -273,8 +313,8 @@ class WCSPHContainer3D:
         for I in ti.grouped(self.grid_ids):
             new_index = self.grid_ids_new[I]
             self.grid_ids_buffer[new_index] = self.grid_ids[I]
-            self.particle_object_id_buffer[new_index] = self.particle_object_id[I]
-            self.x_0_buffer[new_index] = self.x_0[I]
+            self.particle_object_ids_buffer[new_index] = self.particle_object_ids[I]
+            self.rigid_particle_original_positions_buffer[new_index] = self.rigid_particle_original_positions[I]
             self.particle_positions_buffer[new_index] = self.particle_positions[I]
             self.particle_velocities_buffer[new_index] = self.particle_velocities[I]
             self.particle_volumes_buffer[new_index] = self.particle_reference_volumes[I]
@@ -286,8 +326,8 @@ class WCSPHContainer3D:
 
         for I in ti.grouped(self.particle_positions):
             self.grid_ids[I] = self.grid_ids_buffer[I]
-            self.particle_object_id[I] = self.particle_object_id_buffer[I]
-            self.x_0[I] = self.x_0_buffer[I]
+            self.particle_object_ids[I] = self.particle_object_ids_buffer[I]
+            self.rigid_particle_original_positions[I] = self.rigid_particle_original_positions_buffer[I]
             self.particle_positions[I] = self.particle_positions_buffer[I]
             self.particle_velocities[I] = self.particle_velocities_buffer[I]
             self.particle_reference_volumes[I] = self.particle_volumes_buffer[I]
@@ -335,12 +375,12 @@ class WCSPHContainer3D:
         assert self.GGUI
         # FIXME: make it equal to actual particle num
         for i in range(self.particle_max_num):
-            if self.particle_object_id[i] == obj_id:
+            if self.particle_object_ids[i] == obj_id:
                 self.x_vis_buffer[i] = self.particle_positions[i]
                 self.color_vis_buffer[i] = self.particle_colors[i] / 255.0
 
     def dump(self, obj_id):
-        np_object_id = self.particle_object_id.to_numpy()
+        np_object_id = self.particle_object_ids.to_numpy()
         mask = (np_object_id == obj_id).nonzero()
         np_x = self.particle_positions.to_numpy()[mask]
         np_v = self.particle_velocities.to_numpy()[mask]

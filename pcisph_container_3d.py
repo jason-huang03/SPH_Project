@@ -29,7 +29,7 @@ class PCISPHContainer3D:
 
         self.particle_diameter = 2 * self.dx
         self.dh = self.dx * 4.0  # support radius
-        self.m_V0 = 0.8 * self.particle_diameter ** self.dim
+        self.V0 = 0.8 * self.particle_diameter ** self.dim
 
         self.particle_num = ti.field(int, shape=())
 
@@ -137,8 +137,8 @@ class PCISPHContainer3D:
         self.x_0[p] = x
         self.particle_velocities[p] = v
         self.particle_densities[p] = density
-        self.particle_reference_volumes[p] = self.m_V0
-        self.particle_masses[p] = self.m_V0 * density
+        self.particle_reference_volumes[p] = self.V0
+        self.particle_masses[p] = self.V0 * density
         self.particle_pressures[p] = pressure
         self.particle_materials[p] = material
         self.particle_is_dynamic[p] = is_dynamic
