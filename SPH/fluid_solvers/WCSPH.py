@@ -2,6 +2,7 @@
 import taichi as ti
 import numpy as np
 from ..containers import WCSPHContainer
+from ..rigid_solver import ShapeMatchingRigidSolver
 from .base_solver import BaseSolver
 @ti.data_oriented
 class WCSPHSolver(BaseSolver):
@@ -11,10 +12,12 @@ class WCSPHSolver(BaseSolver):
         # wcsph related parameters
         self.gamma = 7.0
         self.stiffness = 50000.0
+        self.rigid_solver = ShapeMatchingRigidSolver(self.dt, container)
 
 
     @ti.kernel
     def compute_non_pressure_acceleration(self):
+        self.container.particle_accelerations.fill(0.0)
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_is_dynamic[p_i]:
                 self.container.particle_accelerations[p_i] = ti.Vector(self.g)
@@ -72,6 +75,7 @@ class WCSPHSolver(BaseSolver):
 
     @ti.kernel
     def compute_pressure_acceleration(self):
+        self.container.particle_accelerations.fill(0.0)
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_is_dynamic[p_i]:
                 self.container.particle_accelerations[p_i] = ti.Vector([0.0 for _ in range(self.container.dim)])
@@ -147,19 +151,27 @@ class WCSPHSolver(BaseSolver):
                     self.container.particle_positions[p_i] = self.container.rigid_body_centers_of_mass[object_id] + self.container.rigid_particle_original_positions[p_i] - self.container.rigid_body_original_centers_of_mass[object_id]
 
     def step(self):
+      
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_non_pressure_acceleration()
         self.update_fluid_velocities()
+        self.rigid_solver.update_rigid_velocities()
 
         self.compute_pressure()
         self.compute_pressure_acceleration()
         self.update_fluid_velocities()
+        self.rigid_solver.update_rigid_velocities()
         
         self.update_fluid_position()
-        self.update_rigid_body()
+
+        self.rigid_solver.update_rigid_positions()
+    
         self.enforce_boundary_3D(self.container.material_fluid)
 
-
+        # print(self.container.rigid_body_original_centers_of_mass[0])
+        # print(a[None])
+        # print(self.rigid_solver.rigid_body_temp_centers_of_mass[0])
+        # print("\n\n\n\n\n")
     def prepare(self):
         self.compute_rigid_particle_volume()

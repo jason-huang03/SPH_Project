@@ -106,11 +106,9 @@ class BaseContainer:
         self.rigid_body_original_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_masses = ti.field(dtype=float, shape=10)
         self.rigid_body_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_rotation_matrices = ti.Matrix.field(self.dim, self.dim, dtype=float, shape=10)
         self.rigid_body_forces = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_torques = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_velocities = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_angular_velocity = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_particle_num = ti.field(dtype=int, shape=10)
 
         # Buffer for sort
         self.particle_object_ids_buffer = ti.field(dtype=int, shape=self.particle_max_num)
@@ -162,6 +160,7 @@ class BaseContainer:
             obj_id = rigid_body["objectId"]
             self.object_id_rigid_body.add(obj_id)
             num_particles_obj = rigid_body["particleNum"]
+            self.rigid_body_particle_num[obj_id] = num_particles_obj
             voxelized_points_np = rigid_body["voxelizedPoints"]
             is_dynamic = rigid_body["isDynamic"]
             if is_dynamic:
@@ -189,7 +188,6 @@ class BaseContainer:
             self.rigid_body_centers_of_mass[obj_id] = rigid_com[None]
             self.rigid_body_original_centers_of_mass[obj_id] = rigid_com[None]
             self.rigid_body_velocities[obj_id] = velocity
-            self.rigid_body_rotation_matrices[obj_id] = ti.Matrix.identity(float, self.dim)
 
 
     @ti.kernel

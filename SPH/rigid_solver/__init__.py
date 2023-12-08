@@ -1,0 +1,1 @@
+from .shape_matching_solver import ShapeMatchingRigidSolver

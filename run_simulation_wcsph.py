@@ -6,7 +6,7 @@ from SPH.utils import SimConfig
 from SPH.containers import WCSPHContainer
 from SPH.fluid_solvers import WCSPHSolver
 
-ti.init(arch=ti.gpu, device_memory_fraction=0.5)
+ti.init(arch=ti.gpu, device_memory_fraction=0.8)
 
 
 if __name__ == "__main__":

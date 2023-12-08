@@ -78,7 +78,6 @@ class BaseSolver():
                 self.container.particle_reference_volumes[p_i] = 1.0 / ret 
                 self.container.particle_masses[p_i] = self.density_0 * self.container.particle_reference_volumes[p_i]
 
-
     @ti.func
     def compute_rigid_particle_volumn_task(self, p_i, p_j, ret: ti.template()):
         pos_i = self.container.particle_positions[p_i]
