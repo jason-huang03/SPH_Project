@@ -68,7 +68,14 @@ class BaseContainer:
             rigid_body["voxelizedPoints"] = voxelized_points_np
             self.object_collection[rigid_body["objectId"]] = rigid_body
             rigid_body_particle_num += voxelized_points_np.shape[0]
-        
+
+        #### Process Rigid Blocks ####
+        rigid_blocks = self.cfg.get_rigid_blocks()
+        for rigid_block in rigid_blocks:
+            particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"])
+            rigid_block["particleNum"] = particle_num
+            self.object_collection[rigid_block["objectId"]] = rigid_block
+            rigid_body_particle_num += particle_num
         
         self.fluid_particle_num = fluid_particle_num
         self.rigid_body_particle_num = rigid_body_particle_num
@@ -89,7 +96,7 @@ class BaseContainer:
         self.particle_positions = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_velocities = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_accelerations = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
-        self.particle_reference_volumes = ti.field(dtype=float, shape=self.particle_max_num)
+        self.particle_rest_volumes = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_masses = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_pressures = ti.field(dtype=float, shape=self.particle_max_num)
@@ -115,7 +122,7 @@ class BaseContainer:
         self.particle_positions_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.rigid_particle_original_positions_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.particle_velocities_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
-        self.particle_reference_volumes_buffer = ti.field(dtype=float, shape=self.particle_max_num)
+        self.particle_rest_volumes_buffer = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_masses_buffer = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities_buffer = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_materials_buffer = ti.field(dtype=int, shape=self.particle_max_num)
@@ -180,32 +187,58 @@ class BaseContainer:
                                is_dynamic * np.ones(num_particles_obj, dtype=np.int32), # is_dynamic
                                np.stack([color for _ in range(num_particles_obj)])) # color
         
-            self.rigid_body_masses[obj_id] = self.compute_rigid_body_mass(obj_id)
+
             self.rigid_body_is_dynamic[obj_id] = is_dynamic
-            rigid_com = ti.Vector.field(self.dim, dtype=float, shape=())
-            rigid_com[None] = ti.Vector([0.0 for _ in range(self.dim)])
-            self.compute_rigid_body_center_of_mass(obj_id, rigid_com)
-            self.rigid_body_centers_of_mass[obj_id] = rigid_com[None]
-            self.rigid_body_original_centers_of_mass[obj_id] = rigid_com[None]
             self.rigid_body_velocities[obj_id] = velocity
+
+            if is_dynamic:
+                self.rigid_body_masses[obj_id] = self.compute_rigid_body_mass(obj_id)
+
+                rigid_com = self.compute_rigid_body_center_of_mass(obj_id)
+                self.rigid_body_centers_of_mass[obj_id] = rigid_com
+                self.rigid_body_original_centers_of_mass[obj_id] = rigid_com
+
+
+        # Rigid block
+        for rigid_block in rigid_blocks:
+            obj_id = rigid_block["objectId"]
+            offset = np.array(rigid_block["translation"])
+            start = np.array(rigid_block["start"]) + offset
+            end = np.array(rigid_block["end"]) + offset
+            scale = np.array(rigid_block["scale"])
+            velocity = rigid_block["velocity"]
+            density = rigid_block["density"]
+            color = rigid_block["color"]
+            is_dynamic = rigid_block["isDynamic"]
+            self.add_cube(object_id=obj_id,
+                          lower_corner=start,
+                          cube_size=(end-start)*scale,
+                          velocity=velocity,
+                          density=density, 
+                          is_dynamic=is_dynamic,
+                          color=color,
+                          material=0) # 1 indicates solid
+
 
 
     @ti.kernel
     def compute_rigid_body_mass(self, object_id: int) -> ti.f32:
         sum_m = 0.0
         for p_i in range(self.particle_num[None]):
-            if self.particle_object_ids[p_i] == object_id:
+            if self.particle_object_ids[p_i] == object_id and self.particle_is_dynamic[p_i]:
                 sum_m += self.particle_densities[p_i] * self.V0
         return sum_m
 
     @ti.kernel
-    def compute_rigid_body_center_of_mass(self, object_id: int, ret: ti.template()):
+    def compute_rigid_body_center_of_mass(self, object_id: int) -> ti.types.vector(3, float):
         sum_xm = ti.Vector([0.0 for _ in range(self.dim)])
+        sum_m = 0.0
         for p_i in range(self.particle_num[None]):
-            if self.particle_object_ids[p_i] == object_id:
+            if self.particle_object_ids[p_i] == object_id and self.particle_is_dynamic[p_i]:
                 sum_xm += self.particle_positions[p_i] * self.particle_densities[p_i] * self.V0
-        
-        ret[None] = sum_xm / self.rigid_body_masses[object_id]
+                sum_m += self.particle_densities[p_i] * self.V0
+
+        return sum_xm / sum_m
 
     @ti.func
     def add_particle(self, p, obj_id, x, v, density, pressure, material, is_dynamic, color):
@@ -214,7 +247,7 @@ class BaseContainer:
         self.rigid_particle_original_positions[p] = x
         self.particle_velocities[p] = v
         self.particle_densities[p] = density
-        self.particle_reference_volumes[p] = self.V0
+        self.particle_rest_volumes[p] = self.V0
         self.particle_masses[p] = self.V0 * density
         self.particle_pressures[p] = pressure
         self.particle_materials[p] = material
@@ -329,7 +362,7 @@ class BaseContainer:
             self.rigid_particle_original_positions_buffer[new_index] = self.rigid_particle_original_positions[I]
             self.particle_positions_buffer[new_index] = self.particle_positions[I]
             self.particle_velocities_buffer[new_index] = self.particle_velocities[I]
-            self.particle_reference_volumes_buffer[new_index] = self.particle_reference_volumes[I]
+            self.particle_rest_volumes_buffer[new_index] = self.particle_rest_volumes[I]
             self.particle_masses_buffer[new_index] = self.particle_masses[I]
             self.particle_densities_buffer[new_index] = self.particle_densities[I]
             self.particle_materials_buffer[new_index] = self.particle_materials[I]
@@ -342,7 +375,7 @@ class BaseContainer:
             self.rigid_particle_original_positions[I] = self.rigid_particle_original_positions_buffer[I]
             self.particle_positions[I] = self.particle_positions_buffer[I]
             self.particle_velocities[I] = self.particle_velocities_buffer[I]
-            self.particle_reference_volumes[I] = self.particle_reference_volumes_buffer[I]
+            self.particle_rest_volumes[I] = self.particle_rest_volumes_buffer[I]
             self.particle_masses[I] = self.particle_masses_buffer[I]
             self.particle_densities[I] = self.particle_densities_buffer[I]
             self.particle_materials[I] = self.particle_materials_buffer[I]

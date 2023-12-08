@@ -75,8 +75,8 @@ class BaseSolver():
             if self.container.particle_materials[p_i] == self.container.material_rigid:
                 ret = self.cubic_kernel(0.0)
                 self.container.for_all_neighbors(p_i, self.compute_rigid_particle_volumn_task, ret)
-                self.container.particle_reference_volumes[p_i] = 1.0 / ret 
-                self.container.particle_masses[p_i] = self.density_0 * self.container.particle_reference_volumes[p_i]
+                self.container.particle_rest_volumes[p_i] = 1.0 / ret 
+                self.container.particle_masses[p_i] = self.density_0 * self.container.particle_rest_volumes[p_i]
 
     @ti.func
     def compute_rigid_particle_volumn_task(self, p_i, p_j, ret: ti.template()):
@@ -137,12 +137,12 @@ class BaseSolver():
             c_s = 10.0
             nu = self.viscosity * self.container.dh * c_s / 2 / self.container.particle_densities[p_i]
             PI = - nu * ti.min(0.0, v_xy) / (R.norm_sqr() + 0.01 * self.container.dh**2)
-            acc = - self.density_0 * self.container.particle_reference_volumes[p_j] * PI * nabla_ij
+            acc = - self.density_0 * self.container.particle_rest_volumes[p_j] * PI * nabla_ij
             ret += acc
 
             if self.container.particle_is_dynamic[p_j]:
                 # add force to dynamic rigid body from fluid here. 
-                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_reference_volumes[p_j])
+                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_rest_volumes[p_j])
 
   
 
@@ -177,14 +177,14 @@ class BaseSolver():
             # use fluid particle pressure, density as rigid particle pressure, density
             den_j = self.container.particle_densities[p_i]
             acc = (
-                - self.density_0 * self.container.particle_reference_volumes[p_j] 
+                - self.density_0 * self.container.particle_rest_volumes[p_j] 
                 * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * self.cubic_kernel_derivative(R)
             )
             ret += acc
 
             if self.container.particle_is_dynamic[p_j]:
                 # add force to dynamic rigid body from fluid here. 
-                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_reference_volumes[p_j])
+                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_rest_volumes[p_j])
             
 
 
@@ -195,7 +195,7 @@ class BaseSolver():
         """
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.container.particle_densities[p_i] = self.container.particle_reference_volumes[p_i] * self.cubic_kernel(0.0)
+                self.container.particle_densities[p_i] = self.container.particle_rest_volumes[p_i] * self.cubic_kernel(0.0)
                 density_i = 0.0
                 self.container.for_all_neighbors(p_i, self.compute_density_task, density_i)
                 self.container.particle_densities[p_i] += density_i
@@ -208,7 +208,7 @@ class BaseSolver():
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
         R_mod = R.norm()
-        ret += self.container.particle_reference_volumes[p_j] * self.cubic_kernel(R_mod)
+        ret += self.container.particle_rest_volumes[p_j] * self.cubic_kernel(R_mod)
 
     @ti.func
     def simulate_collisions(self, p_i, vec):

@@ -62,12 +62,12 @@ class WCSPHSolver(BaseSolver):
             c_s = 10.0
             nu = self.viscosity * self.container.dh * c_s / 2 / self.container.particle_densities[p_i]
             PI = - nu * ti.min(0.0, v_xy) / (R.norm_sqr() + 0.01 * self.container.dh**2)
-            acc = - self.density_0 * self.container.particle_reference_volumes[p_j] * PI * nabla_ij
+            acc = - self.density_0 * self.container.particle_rest_volumes[p_j] * PI * nabla_ij
             ret += acc
 
             if self.container.particle_is_dynamic[p_j]:
                 # add force to dynamic rigid body from fluid here. 
-                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_reference_volumes[p_j])
+                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_rest_volumes[p_j])
 
   
 
@@ -105,7 +105,7 @@ class WCSPHSolver(BaseSolver):
             # use fluid particle pressure, density as rigid particle pressure, density
             den_j = self.container.particle_densities[p_i]
             acc = (
-                - self.density_0 * self.container.particle_reference_volumes[p_j] 
+                - self.density_0 * self.container.particle_rest_volumes[p_j] 
                 * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * self.cubic_kernel_derivative(R)
             )
             ret += acc
@@ -113,7 +113,7 @@ class WCSPHSolver(BaseSolver):
             if self.container.particle_is_dynamic[p_j]:
                 # add force to dynamic rigid body from fluid here.
                 # TODO: there seems to be a problem here. 
-                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_reference_volumes[p_j])
+                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_rest_volumes[p_j])
             
 
     @ti.kernel
@@ -166,13 +166,11 @@ class WCSPHSolver(BaseSolver):
         self.update_fluid_position()
 
         self.rigid_solver.update_rigid_positions()
+        self.rigid_solver.compute_temp_center_of_mass()
+        self.rigid_solver.solve_constraints()
     
         self.enforce_boundary_3D(self.container.material_fluid)
 
-        # print(self.container.rigid_body_original_centers_of_mass[0])
-        # print(a[None])
-        # print(self.rigid_solver.rigid_body_temp_centers_of_mass[0])
-        # print("\n\n\n\n\n")
-        # breakpoint()
+
     def prepare(self):
         self.compute_rigid_particle_volume()

@@ -31,8 +31,8 @@ if __name__ == "__main__":
         os.makedirs(f"{scene_name}_output", exist_ok=True)
 
 
-    ps = WCSPHContainer(config, GGUI=True)
-    solver = WCSPHSolver(ps)
+    container = WCSPHContainer(config, GGUI=True)
+    solver = WCSPHSolver(container)
     solver.prepare()
 
     window = ti.ui.Window('SPH', (1024, 1024), show_window = False, vsync=False)
@@ -80,15 +80,15 @@ if __name__ == "__main__":
     while window.running:
         for i in range(substeps):
             solver.step()
-        ps.copy_to_vis_buffer(invisible_objects=invisible_objects)
-        if ps.dim == 2:
+        container.copy_to_vis_buffer(invisible_objects=invisible_objects)
+        if container.dim == 2:
             canvas.set_background_color(background_color)
-            canvas.circles(ps.x_vis_buffer, radius=ps.dx, color=particle_color)
-        elif ps.dim == 3:
+            canvas.circles(container.x_vis_buffer, radius=container.dx, color=particle_color)
+        elif container.dim == 3:
             scene.set_camera(camera)
 
             scene.point_light((2.0, 2.0, 2.0), color=(1.0, 1.0, 1.0))
-            scene.particles(ps.x_vis_buffer, radius=ps.dx, per_vertex_color=ps.color_vis_buffer)
+            scene.particles(container.x_vis_buffer, radius=container.dx, per_vertex_color=container.color_vis_buffer)
 
             scene.lines(box_anchors, indices=box_lines_indices, color = (0.99, 0.68, 0.28), width = 1.0)
             canvas.scene(scene)
@@ -100,15 +100,15 @@ if __name__ == "__main__":
         if cnt % output_interval == 0:
             if output_ply:
                 obj_id = 0
-                obj_data = ps.dump(obj_id=obj_id)
+                obj_data = container.dump(obj_id=obj_id)
                 np_pos = obj_data["position"]
-                writer = ti.tools.PLYWriter(num_vertices=ps.object_collection[obj_id]["particleNum"])
+                writer = ti.tools.PLYWriter(num_vertices=container.object_collection[obj_id]["particleNum"])
                 writer.add_vertex_pos(np_pos[:, 0], np_pos[:, 1], np_pos[:, 2])
                 writer.export_frame_ascii(cnt_ply, series_prefix.format(0))
             if output_obj:
-                for r_body_id in ps.object_id_rigid_body:
+                for r_body_id in container.object_id_rigid_body:
                     with open(f"{scene_name}_output/obj_{r_body_id}_{cnt_ply:06}.obj", "w") as f:
-                        e = ps.object_collection[r_body_id]["mesh"].export(file_type='obj')
+                        e = container.object_collection[r_body_id]["mesh"].export(file_type='obj')
                         f.write(e)
             cnt_ply += 1
 

@@ -22,7 +22,7 @@ class PCISPHSolver(BaseSolver):
             for i in ti.static(range(self.container.dim)):
                 sum_nabla[i] = ret_i[i]
 
-            volume_i = self.container.particle_reference_volumes[p_i]
+            volume_i = self.container.particle_rest_volumes[p_i]
 
             self.container.particle_pcisph_k[p_i] = (
                 - 0.5 

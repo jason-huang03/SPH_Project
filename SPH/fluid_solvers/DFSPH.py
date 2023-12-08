@@ -92,7 +92,7 @@ class DFSPHSolver(BaseSolver):
     def compute_alpha_task(self, p_i, p_j, ret: ti.template()):
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             # Fluid neighbors
-            grad_p_j = -self.container.particle_reference_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+            grad_p_j = -self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
             ret[3] += grad_p_j.norm_sqr() # sum_grad_p_k
             for i in ti.static(range(3)): # grad_p_i
                 ret[i] += grad_p_j[i]
@@ -130,7 +130,7 @@ class DFSPHSolver(BaseSolver):
         v_j = self.container.particle_velocities[p_j]
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
-        ret.density_adv += self.container.particle_reference_volumes[p_j] * ti.math.dot(v_i - v_j, self.cubic_kernel_derivative(pos_i - pos_j))
+        ret.density_adv += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j, self.cubic_kernel_derivative(pos_i - pos_j))
  
         # Compute the number of neighbors
         ret.num_neighbors += 1
@@ -156,7 +156,7 @@ class DFSPHSolver(BaseSolver):
         pos_j = self.container.particle_positions[p_j]
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             # Fluid neighbors
-            ret += self.container.particle_reference_volumes[p_j] * ti.math.dot(v_i - v_j,self.cubic_kernel_derivative(pos_i - pos_j))
+            ret += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j,self.cubic_kernel_derivative(pos_i - pos_j))
 
     ################# End of Density Related Computation #################
 
@@ -211,7 +211,7 @@ class DFSPHSolver(BaseSolver):
             k_i = ret.k_i
             k_sum = k_i + k_j 
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = self.container.particle_reference_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 ret.dv -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
 
     @ti.kernel
@@ -274,7 +274,7 @@ class DFSPHSolver(BaseSolver):
             k_j = self.container.particle_dfsph_kappa[p_j]
             k_sum = k_i +  k_j 
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = self.container.particle_reference_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 # Directly update velocities instead of storing pressure accelerations
                 self.container.particle_velocities[p_i] -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
 
