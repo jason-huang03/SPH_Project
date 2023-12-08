@@ -173,5 +173,6 @@ class WCSPHSolver(BaseSolver):
         # print(a[None])
         # print(self.rigid_solver.rigid_body_temp_centers_of_mass[0])
         # print("\n\n\n\n\n")
+        # breakpoint()
     def prepare(self):
         self.compute_rigid_particle_volume()
