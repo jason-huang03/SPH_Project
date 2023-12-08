@@ -4,7 +4,7 @@ import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
 from SPH.containers import WCSPHContainer
-from SPH.solvers import WCSPHSolver
+from SPH.fluid_solvers import WCSPHSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.5)
 

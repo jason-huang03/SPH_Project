@@ -4,7 +4,7 @@ import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
 from SPH.containers import DFSPHContainer
-from SPH.solvers import DFSPHSolver
+from SPH.fluid_solvers import DFSPHSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.5)
 

@@ -164,7 +164,7 @@ class PCISPHSolver(BaseSolver):
     def update_pressure(self):
         for p_i in range(self.container.particle_num[None]):
             # ! how to treat sparse area?
-            if self.container.particle_densities_star > self.density_0 + 1e-5:
+            if self.container.particle_densities_star[p_i] > self.density_0 + 1e-5:
                 self.container.particle_pressures[p_i] += self.container.particle_pcisph_k[p_i] * (self.density_0 - self.container.particle_densities_star[p_i])
                 ret = 0.0
                 self.container.for_all_neighbors(p_i, self.update_pressure_task, ret)
@@ -203,6 +203,7 @@ class PCISPHSolver(BaseSolver):
         while num_itr < 1 or num_itr < self.max_iterations:
             self.compute_pressure_acceleration()
             self.compute_density_change()
+            self.update_pressure()
             density_average_error = self.compute_density_error()
             density_average_error = ti.abs(density_average_error)
 
@@ -232,7 +233,6 @@ class PCISPHSolver(BaseSolver):
 
 
     def step(self):
-        
         self.container.prepare_neighborhood_search()
         self.compute_pcisph_k()
         self.compute_density()

@@ -4,7 +4,7 @@ import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
 from SPH.containers import PCISPHContainer
-from SPH.solvers import PCISPHSolver
+from SPH.fluid_solvers import PCISPHSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.7)
 

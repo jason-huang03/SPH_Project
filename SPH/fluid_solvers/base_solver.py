@@ -89,6 +89,10 @@ class BaseSolver():
             ret += self.cubic_kernel(R_mod)
 
     @ti.kernel
+    def init_acceleration(self):
+        self.container.particle_accelerations
+
+    @ti.kernel
     def compute_non_pressure_acceleration(self):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_is_dynamic[p_i]:

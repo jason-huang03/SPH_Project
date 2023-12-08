@@ -81,7 +81,7 @@ class DFSPHSolver(BaseSolver):
             # Compute pressure stiffness denominator
             factor = 0.0
             if sum_grad_p_k > 1e-6:
-                factor = -1.0 / sum_grad_p_k
+                factor = 1.0 / sum_grad_p_k
             else:
                 factor = 0.0
             self.container.particle_dfsph_alphas[p_i] = factor
@@ -210,7 +210,7 @@ class DFSPHSolver(BaseSolver):
             k_i = ret.k_i
             k_sum = k_i + k_j 
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = -self.container.particle_reference_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_reference_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 ret.dv -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
 
     @ti.kernel
@@ -273,7 +273,7 @@ class DFSPHSolver(BaseSolver):
             k_j = self.container.particle_dfsph_kappa[p_j]
             k_sum = k_i +  k_j 
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = -self.container.particle_reference_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_reference_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 # Directly update velocities instead of storing pressure accelerations
                 self.container.particle_velocities[p_i] -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
 
@@ -312,12 +312,14 @@ class DFSPHSolver(BaseSolver):
         self.compute_non_pressure_acceleration()
         self.update_velocities()
         self.correct_density_error()
+
         self.update_position()
         self.enforce_boundary_3D(self.container.material_fluid)
 
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_alpha()
+        
         self.correct_divergence_error()
 
     def prepare(self):
