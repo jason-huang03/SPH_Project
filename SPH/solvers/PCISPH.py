@@ -1,10 +1,10 @@
 import taichi as ti
 import numpy as np
-from ..containers import PCISPHContainer3D
+from ..containers import PCISPHContainer
 
 @ti.data_oriented
-class PCISPHSolver3D():
-    def __init__(self, container: PCISPHContainer3D):
+class PCISPHSolver():
+    def __init__(self, container: PCISPHContainer):
         self.container = container
         self.g = ti.Vector([0.0, -9.81, 0.0])  # Gravity
 

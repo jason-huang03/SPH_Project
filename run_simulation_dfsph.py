@@ -3,8 +3,8 @@ import argparse
 import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
-from SPH.containers import DFSPHContainer3D
-from SPH.solvers import DFSPHSolver3D
+from SPH.containers import DFSPHContainer
+from SPH.solvers import DFSPHSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.5)
 
@@ -31,8 +31,8 @@ if __name__ == "__main__":
         os.makedirs(f"{scene_name}_output", exist_ok=True)
 
 
-    ps = DFSPHContainer3D(config, GGUI=True)
-    solver = DFSPHSolver3D(ps)
+    ps = DFSPHContainer(config, GGUI=True)
+    solver = DFSPHSolver(ps)
 
     ps.prepare_neighborhood_search()
     solver.compute_density()

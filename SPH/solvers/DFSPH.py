@@ -1,10 +1,10 @@
 import taichi as ti
 import numpy as np
-from ..containers import DFSPHContainer3D
+from ..containers import DFSPHContainer
 
 @ti.data_oriented
-class DFSPHSolver3D():
-    def __init__(self, container: DFSPHContainer3D):
+class DFSPHSolver():
+    def __init__(self, container: DFSPHContainer):
         self.container = container
         if self.container.dim == 2:
             self.g = ti.Vector([0.0, -9.81])

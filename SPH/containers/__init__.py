@@ -1,3 +1,3 @@
-from .dfsph_container import DFSPHContainer3D
-from .pcisph_container import PCISPHContainer3D
-from .wcsph_container import WCSPHContainer3D
+from .dfsph_container import DFSPHContainer
+from .pcisph_container import PCISPHContainer
+from .wcsph_container import WCSPHContainer

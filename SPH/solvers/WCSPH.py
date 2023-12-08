@@ -1,10 +1,10 @@
 import taichi as ti
 import numpy as np
-from ..containers import WCSPHContainer3D
+from ..containers import WCSPHContainer
 
 @ti.data_oriented
-class WCSPHSolver3D():
-    def __init__(self, container: WCSPHContainer3D):
+class WCSPHSolver():
+    def __init__(self, container: WCSPHContainer):
         self.container = container
         self.g = ti.Vector([0.0, -9.81, 0.0])  # Gravity
 

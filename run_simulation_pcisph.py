@@ -3,8 +3,8 @@ import argparse
 import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
-from SPH.containers import PCISPHContainer3D
-from SPH.solvers import PCISPHSolver3D
+from SPH.containers import PCISPHContainer
+from SPH.solvers import PCISPHSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.7)
 
@@ -31,8 +31,8 @@ if __name__ == "__main__":
         os.makedirs(f"{scene_name}_output", exist_ok=True)
 
 
-    ps = PCISPHContainer3D(config, GGUI=True)
-    solver = PCISPHSolver3D(ps)
+    ps = PCISPHContainer(config, GGUI=True)
+    solver = PCISPHSolver(ps)
 
     window = ti.ui.Window('SPH', (1024, 1024), show_window = False, vsync=False)
 

@@ -1,3 +1,3 @@
-from .DFSPH import DFSPHSolver3D
-from .WCSPH import WCSPHSolver3D
-from .PCISPH import PCISPHSolver3D
+from .DFSPH import DFSPHSolver
+from .WCSPH import WCSPHSolver
+from .PCISPH import PCISPHSolver

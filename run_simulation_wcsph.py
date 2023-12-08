@@ -3,8 +3,8 @@ import argparse
 import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
-from SPH.containers import WCSPHContainer3D
-from SPH.solvers import WCSPHSolver3D
+from SPH.containers import WCSPHContainer
+from SPH.solvers import WCSPHSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.5)
 
@@ -31,8 +31,8 @@ if __name__ == "__main__":
         os.makedirs(f"{scene_name}_output", exist_ok=True)
 
 
-    ps = WCSPHContainer3D(config, GGUI=True)
-    solver = WCSPHSolver3D(ps)
+    ps = WCSPHContainer(config, GGUI=True)
+    solver = WCSPHSolver(ps)
 
     window = ti.ui.Window('SPH', (1024, 1024), show_window = False, vsync=False)
 
