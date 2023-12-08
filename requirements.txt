@@ -1,0 +1,5 @@
+taichi>=1.6.0
+trimesh
+scipy
+matplotlib
+imageio[ffmpeg]
