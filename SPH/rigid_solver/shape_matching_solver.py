@@ -5,3 +5,4 @@ from ..containers import BaseContainer
 class ShapeMatchingRigidSolver():
     def __init__(self, container: BaseContainer):
         self.container = container
+
