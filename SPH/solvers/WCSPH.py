@@ -172,3 +172,7 @@ class WCSPHSolver(BaseSolver):
         self.update_position()
         self.update_rigid_body()
         self.enforce_boundary_3D(self.container.material_fluid)
+
+
+    def prepare(self):
+        self.compute_rigid_particle_volume()

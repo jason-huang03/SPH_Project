@@ -75,7 +75,7 @@ class BaseSolver():
             if self.container.particle_materials[p_i] == self.container.material_rigid:
                 ret = self.cubic_kernel(0.0)
                 self.container.for_all_neighbors(p_i, self.compute_rigid_particle_volumn_task, ret)
-                self.container.particle_reference_volumes[p_i] = 1.0 / ret * 3.0 # TODO: remove this when having better samplinig method.
+                self.container.particle_reference_volumes[p_i] = 1.0 / ret 
                 self.container.particle_masses[p_i] = self.density_0 * self.container.particle_reference_volumes[p_i]
 
 
@@ -266,5 +266,5 @@ class BaseSolver():
                 self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
     
 
- 
-
+    def prepare(self):
+        pass

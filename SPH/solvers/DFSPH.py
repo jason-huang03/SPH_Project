@@ -319,3 +319,8 @@ class DFSPHSolver(BaseSolver):
         self.compute_density()
         self.compute_alpha()
         self.correct_divergence_error()
+
+    def prepare(self):
+        self.container.prepare_neighborhood_search()
+        self.compute_density()
+        self.compute_alpha()

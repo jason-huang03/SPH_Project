@@ -33,10 +33,8 @@ if __name__ == "__main__":
 
     ps = DFSPHContainer(config, GGUI=True)
     solver = DFSPHSolver(ps)
+    solver.prepare()
 
-    ps.prepare_neighborhood_search()
-    solver.compute_density()
-    solver.compute_alpha()
 
     window = ti.ui.Window('SPH', (1024, 1024), show_window = False, vsync=False)
 

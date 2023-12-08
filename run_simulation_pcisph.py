@@ -33,6 +33,7 @@ if __name__ == "__main__":
 
     ps = PCISPHContainer(config, GGUI=True)
     solver = PCISPHSolver(ps)
+    solver.prepare()
 
     window = ti.ui.Window('SPH', (1024, 1024), show_window = False, vsync=False)
 
