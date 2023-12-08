@@ -252,7 +252,7 @@ class BaseSolver():
 
 
     @ti.kernel
-    def update_velocities(self):
+    def update_fluid_velocities(self):
         """
         update velocity for each particle from acceleration
         """
@@ -261,7 +261,7 @@ class BaseSolver():
                 self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i]
 
     @ti.kernel
-    def update_position(self):
+    def update_fluid_position(self):
         """
         update position for each particle from velocity
         """

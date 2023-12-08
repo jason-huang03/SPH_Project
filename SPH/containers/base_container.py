@@ -106,7 +106,7 @@ class BaseContainer:
         self.rigid_body_original_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_masses = ti.field(dtype=float, shape=10)
         self.rigid_body_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_rotations = ti.Matrix.field(self.dim, self.dim, dtype=float, shape=10)
+        self.rigid_body_rotation_matrices = ti.Matrix.field(self.dim, self.dim, dtype=float, shape=10)
         self.rigid_body_forces = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_torques = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_velocities = ti.Vector.field(self.dim, dtype=float, shape=10)
@@ -189,6 +189,7 @@ class BaseContainer:
             self.rigid_body_centers_of_mass[obj_id] = rigid_com[None]
             self.rigid_body_original_centers_of_mass[obj_id] = rigid_com[None]
             self.rigid_body_velocities[obj_id] = velocity
+            self.rigid_body_rotation_matrices[obj_id] = ti.Matrix.identity(float, self.dim)
 
 
     @ti.kernel

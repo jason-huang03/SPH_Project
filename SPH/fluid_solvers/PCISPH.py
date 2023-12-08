@@ -1,3 +1,4 @@
+# implementatioin of paper "Predictive-Corrective Incompressible SPH"
 import taichi as ti
 import numpy as np
 from ..containers import PCISPHContainer
@@ -215,7 +216,7 @@ class PCISPHSolver(BaseSolver):
 
 
     @ti.kernel
-    def update_velocities(self):
+    def update_fluid_velocities(self):
         """
         update velocity for each particle from acceleration
         """
@@ -223,7 +224,7 @@ class PCISPHSolver(BaseSolver):
             self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i] + self.dt[None] * self.container.particle_pressure_accelerations[p_i]
 
     @ti.kernel
-    def update_position(self):
+    def update_fluid_position(self):
         """
         update position for each particle from velocity
         """
@@ -241,7 +242,7 @@ class PCISPHSolver(BaseSolver):
         self.compute_pressure()
         self.refine()
 
-        self.update_velocities()
-        self.update_position()
+        self.update_fluid_velocities()
+        self.update_fluid_position()
 
         self.enforce_boundary_3D(self.container.material_fluid)

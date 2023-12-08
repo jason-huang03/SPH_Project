@@ -1,3 +1,4 @@
+# implementation of paper "Weakly compressible SPH for free surface flows"
 import taichi as ti
 import numpy as np
 from ..containers import WCSPHContainer
@@ -149,13 +150,13 @@ class WCSPHSolver(BaseSolver):
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_non_pressure_acceleration()
-        self.update_velocities()
+        self.update_fluid_velocities()
 
         self.compute_pressure()
         self.compute_pressure_acceleration()
-        self.update_velocities()
+        self.update_fluid_velocities()
         
-        self.update_position()
+        self.update_fluid_position()
         self.update_rigid_body()
         self.enforce_boundary_3D(self.container.material_fluid)
 
