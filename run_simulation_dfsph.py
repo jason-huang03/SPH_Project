@@ -2,9 +2,9 @@ import os
 import argparse
 import taichi as ti
 import numpy as np
-from config_builder import SimConfig
-from dfsph_container_3d import DFSPHContainer3D
-from DFSPH import DFSPHSolver3D
+from SPH.utils import SimConfig
+from SPH.containers import DFSPHContainer3D
+from SPH.solvers import DFSPHSolver3D
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.5)
 

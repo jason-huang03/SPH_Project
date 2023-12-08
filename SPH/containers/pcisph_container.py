@@ -2,7 +2,8 @@ import taichi as ti
 import numpy as np
 import trimesh as tm
 from functools import reduce
-from config_builder import SimConfig
+from ..utils import SimConfig
+
 
 @ti.data_oriented
 class PCISPHContainer3D:

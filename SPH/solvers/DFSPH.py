@@ -1,6 +1,6 @@
 import taichi as ti
 import numpy as np
-from dfsph_container_3d import DFSPHContainer3D
+from ..containers import DFSPHContainer3D
 
 @ti.data_oriented
 class DFSPHSolver3D():

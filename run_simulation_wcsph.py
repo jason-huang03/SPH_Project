@@ -2,9 +2,9 @@ import os
 import argparse
 import taichi as ti
 import numpy as np
-from config_builder import SimConfig
-from wcsph_container_3d import WCSPHContainer3D
-from WCSPH import WCSPHSolver3D
+from SPH.utils import SimConfig
+from SPH.containers import WCSPHContainer3D
+from SPH.solvers import WCSPHSolver3D
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.5)
 

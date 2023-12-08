@@ -1,6 +1,6 @@
 import taichi as ti
 import numpy as np
-from pcisph_container_3d import PCISPHContainer3D
+from ..containers import PCISPHContainer3D
 
 @ti.data_oriented
 class PCISPHSolver3D():
