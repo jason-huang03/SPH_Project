@@ -27,7 +27,7 @@
 			"velocity": [0.0, 0.0, 0.0],
 			"density": 1000.0,
 			"color": [255, 255, 255], 
-			"isDynamic": true
+			"isDynamic": false
 		}
 	],
 	"FluidBlocks": [

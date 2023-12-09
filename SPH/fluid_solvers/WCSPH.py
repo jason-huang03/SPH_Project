@@ -170,7 +170,7 @@ class WCSPHSolver(BaseSolver):
         self.rigid_solver.solve_constraints()
     
         self.enforce_boundary_3D(self.container.material_fluid)
-        self.enforce_boundary_3D(self.container.material_rigid)
+        # self.enforce_boundary_3D(self.container.material_rigid)
 
 
     def prepare(self):
