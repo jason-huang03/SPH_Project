@@ -86,7 +86,7 @@ if __name__ == "__main__":
         container.copy_to_vis_buffer(invisible_objects=invisible_objects, dim=dim)
         if container.dim == 2:
             canvas.set_background_color(background_color)
-            canvas.circles(container.x_vis_buffer, radius=container.dx / 2  / domain_end[0], color=particle_color)
+            canvas.circles(container.x_vis_buffer, radius=container.dx / 4  / domain_end[0], color=particle_color)
         elif container.dim == 3:
             scene.set_camera(camera)
 

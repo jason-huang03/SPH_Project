@@ -21,9 +21,9 @@
 	"FluidBlocks": [
 		{
             "objectId": 1,
-			"start": [0.0, 4.0],
-			"end": [60.0, 30.0],
-			"translation": [10.0, 1.0],
+			"start": [20.0, 5.0],
+			"end": [55.0, 45.0],
+			"translation": [0.0, 0.0],
 			"scale": [1, 1],
 			"velocity": [0.0, 0.0],
 			"density": 1000.0,
