@@ -36,6 +36,7 @@ class BaseContainer:
             self.dh = self.dx * 4.0  # support radius
         else:
             self.dh = self.dx * 3.0  # support radius
+        
 
         self.V0 = 0.8 * self.particle_diameter ** self.dim
 

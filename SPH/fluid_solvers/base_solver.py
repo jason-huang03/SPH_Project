@@ -23,7 +23,8 @@ class BaseSolver():
 
 
     @ti.func
-    def cubic_kernel(self, R_mod):
+    def kernel_W(self, R_mod):
+        # cubic kernel
         res = ti.cast(0.0, ti.f32)
         h = self.container.dh
         # value of cubic spline smoothing kernel
@@ -46,7 +47,8 @@ class BaseSolver():
         return res
 
     @ti.func
-    def cubic_kernel_derivative(self, R):
+    def kernel_gradient(self, R):
+        # cubic kernel gradient
         h = self.container.dh
         # derivative of cubic spline smoothing kernel
         k = 1.0
@@ -73,7 +75,7 @@ class BaseSolver():
     def compute_rigid_particle_volume(self):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_rigid:
-                ret = self.cubic_kernel(0.0)
+                ret = self.kernel_W(0.0)
                 self.container.for_all_neighbors(p_i, self.compute_rigid_particle_volumn_task, ret)
                 self.container.particle_rest_volumes[p_i] = 1.0 / ret 
                 self.container.particle_masses[p_i] = self.density_0 * self.container.particle_rest_volumes[p_i]
@@ -85,7 +87,7 @@ class BaseSolver():
             pos_j = self.container.particle_positions[p_j]
             R = pos_i - pos_j
             R_mod = R.norm()
-            ret += self.cubic_kernel(R_mod)
+            ret += self.kernel_W(R_mod)
 
     @ti.kernel
     def init_acceleration(self):
@@ -115,9 +117,9 @@ class BaseSolver():
             R = pos_i - pos_j
             R2 = ti.math.dot(R, R)
             if R2 > diameter2:
-                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.cubic_kernel(R.norm())
+                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.kernel_W(R.norm())
             else:
-                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.cubic_kernel(ti.Vector([self.container.particle_diameter, 0.0, 0.0]).norm())
+                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.kernel_W(ti.Vector([self.container.particle_diameter, 0.0, 0.0]).norm())
             
         
         ############### Viscosoty Force ###############
@@ -125,7 +127,7 @@ class BaseSolver():
         pos_j = self.container.particle_positions[p_j]
         # Compute the viscosity force contribution
         R = pos_i - pos_j
-        nabla_ij = self.cubic_kernel_derivative(R)
+        nabla_ij = self.kernel_gradient(R)
         v_xy = ti.math.dot(self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j], R)
         
         if self.container.particle_materials[p_j] == self.container.material_fluid:
@@ -153,7 +155,7 @@ class BaseSolver():
         """
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.container.particle_densities[p_i] = self.container.particle_rest_volumes[p_i] * self.cubic_kernel(0.0)
+                self.container.particle_densities[p_i] = self.container.particle_rest_volumes[p_i] * self.kernel_W(0.0)
                 density_i = 0.0
                 self.container.for_all_neighbors(p_i, self.compute_density_task, density_i)
                 self.container.particle_densities[p_i] += density_i
@@ -166,7 +168,7 @@ class BaseSolver():
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
         R_mod = R.norm()
-        ret += self.container.particle_rest_volumes[p_j] * self.cubic_kernel(R_mod)
+        ret += self.container.particle_rest_volumes[p_j] * self.kernel_W(R_mod)
 
 
     @ti.func
@@ -232,7 +234,7 @@ class BaseSolver():
 
 
     @ti.kernel
-    def update_fluid_velocities(self):
+    def update_fluid_velocity(self):
         """
         update velocity for each particle from acceleration
         """

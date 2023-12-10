@@ -39,7 +39,7 @@ class PCISPHSolver(BaseSolver):
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
-        nabla_ij = self.cubic_kernel_derivative(R)
+        nabla_ij = self.kernel_gradient(R)
 
         ret[0] += nabla_ij[0]
         ret[1] += nabla_ij[1]
@@ -64,7 +64,7 @@ class PCISPHSolver(BaseSolver):
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
-        nabla_ij = self.cubic_kernel_derivative(R)
+        nabla_ij = self.kernel_gradient(R)
         v_ij = self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j]
         m_j = self.container.particle_rest_volumes[p_j] * self.density_0
         a_ij = self.container.particle_accelerations[p_i] - self.container.particle_accelerations[p_j]
@@ -102,7 +102,7 @@ class PCISPHSolver(BaseSolver):
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
-        nabla_ij = self.cubic_kernel_derivative(R)
+        nabla_ij = self.kernel_gradient(R)
 
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             den_i = self.container.particle_densities[p_i]
@@ -141,7 +141,7 @@ class PCISPHSolver(BaseSolver):
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
-        nabla_ij = self.cubic_kernel_derivative(R)
+        nabla_ij = self.kernel_gradient(R)
         a_ij = self.container.particle_pressure_accelerations[p_i] - self.container.particle_pressure_accelerations[p_j]
         ret += self.container.particle_rest_volumes[p_j] * self.density_0 * ti.math.dot(a_ij, nabla_ij) * self.dt[None]
 
@@ -163,7 +163,7 @@ class PCISPHSolver(BaseSolver):
         # Fluid neighbor and rigid neighbor are treated the same here
         a_ij = self.container.particle_pressure_accelerations[p_i] - self.container.particle_pressure_accelerations[p_j]
         R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
-        nabla_ij = self.cubic_kernel_derivative(R)
+        nabla_ij = self.kernel_gradient(R)
         ret += (
             - self.container.particle_pcisph_k[p_i]
             * self.dt[None]
@@ -204,7 +204,7 @@ class PCISPHSolver(BaseSolver):
 
 
     @ti.kernel
-    def update_fluid_velocities(self):
+    def update_fluid_velocity(self):
         """
         update velocity for each particle from acceleration
         """
@@ -233,7 +233,7 @@ class PCISPHSolver(BaseSolver):
         self.compute_pressure()
         self.refine()
 
-        self.update_fluid_velocities()
+        self.update_fluid_velocity()
         self.update_fluid_position()
 
         self.enforce_boundary_3D(self.container.material_fluid)

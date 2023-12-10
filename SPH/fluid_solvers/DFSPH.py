@@ -49,7 +49,7 @@ class DFSPHSolver(BaseSolver):
     def compute_alpha_task(self, p_i, p_j, ret: ti.template()):
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             # Fluid neighbors
-            grad_p_j = -self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+            grad_p_j = -self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
             ret[self.container.dim] += grad_p_j.norm_sqr() # sum_grad_p_k
             for i in ti.static(range(self.container.dim)): # grad_p_i
                 ret[i] += grad_p_j[i]
@@ -57,7 +57,7 @@ class DFSPHSolver(BaseSolver):
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
             # Rigid neighbors
             # we suppose the rigid body is not dynamic, so it cannot have acceleration. So we discard one term in the equation.
-            grad_p_j = -self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+            grad_p_j = -self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
             for i in ti.static(range(self.container.dim)):
                 ret[i] += grad_p_j[i]
     
@@ -94,7 +94,7 @@ class DFSPHSolver(BaseSolver):
         v_j = self.container.particle_velocities[p_j]
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
-        ret.density_adv += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j, self.cubic_kernel_derivative(pos_i - pos_j))
+        ret.density_adv += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j, self.kernel_gradient(pos_i - pos_j))
  
         # Compute the number of neighbors
         ret.num_neighbors += 1
@@ -121,7 +121,7 @@ class DFSPHSolver(BaseSolver):
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
             
-        ret += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j,self.cubic_kernel_derivative(pos_i - pos_j))
+        ret += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j,self.kernel_gradient(pos_i - pos_j))
 
     ################# End of Density Related Computation #################
 
@@ -176,7 +176,7 @@ class DFSPHSolver(BaseSolver):
             k_i = ret.k_i
             k_sum = k_i + k_j 
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 ret.dv -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
 
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
@@ -186,7 +186,7 @@ class DFSPHSolver(BaseSolver):
             den_i = self.container.particle_densities[p_i]
             den_j = den_i
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 ret.dv -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
                 # TODO: add force to dynamic rigid body from fluid here.
 
@@ -249,7 +249,7 @@ class DFSPHSolver(BaseSolver):
             k_j = self.container.particle_dfsph_kappa[p_j]
             k_sum = k_i +  k_j 
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 self.container.particle_velocities[p_i] -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
 
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
@@ -259,7 +259,7 @@ class DFSPHSolver(BaseSolver):
             den_j=  den_i
             k_sum = k_i + k_j
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
-                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 self.container.particle_velocities[p_i] -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
                 # TODO: add force to dynamic rigid body from fluid here.
 
@@ -277,7 +277,7 @@ class DFSPHSolver(BaseSolver):
     ################# End of Constant Density Solver #################
 
     @ti.kernel
-    def update_fluid_velocities(self):
+    def update_fluid_velocity(self):
         """
         update velocity for each particle from acceleration
         """
@@ -298,7 +298,7 @@ class DFSPHSolver(BaseSolver):
     def step(self):
 
         self.compute_non_pressure_acceleration()
-        self.update_fluid_velocities()
+        self.update_fluid_velocity()
         self.correct_density_error()
 
         self.update_fluid_position()

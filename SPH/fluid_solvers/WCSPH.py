@@ -38,7 +38,7 @@ class WCSPHSolver(BaseSolver):
             ret += (
                 - self.container.particle_masses[p_j] 
                 * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_j] / (den_j * den_j)) 
-                * self.cubic_kernel_derivative(R)
+                * self.kernel_gradient(R)
             )
 
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
@@ -46,7 +46,7 @@ class WCSPHSolver(BaseSolver):
             den_j = self.container.particle_densities[p_i]
             acc = (
                 - self.density_0 * self.container.particle_rest_volumes[p_j] 
-                * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * self.cubic_kernel_derivative(R)
+                * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * self.kernel_gradient(R)
             )
             ret += acc
 
@@ -66,11 +66,11 @@ class WCSPHSolver(BaseSolver):
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_non_pressure_acceleration()
-        self.update_fluid_velocities()
+        self.update_fluid_velocity()
 
         self.compute_pressure()
         self.compute_pressure_acceleration()
-        self.update_fluid_velocities()
+        self.update_fluid_velocity()
         self.update_fluid_position()
     
         self.enforce_boundary_3D(self.container.material_fluid)
