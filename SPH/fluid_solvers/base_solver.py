@@ -91,15 +91,16 @@ class BaseSolver():
     def init_acceleration(self):
         self.container.particle_accelerations
 
+
     @ti.kernel
     def compute_non_pressure_acceleration(self):
         for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_is_dynamic[p_i]:
-                self.container.particle_accelerations[p_i] = ti.Vector(self.g)
-                if self.container.particle_materials[p_i] == self.container.material_fluid:
-                    a_i = ti.Vector([0.0, 0.0, 0.0])
-                    self.container.for_all_neighbors(p_i, self.compute_non_pressure_acceleration_task, a_i)
-                    self.container.particle_accelerations[p_i] += a_i
+            ############## Body force ###############
+            # Add body force
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                a_i = ti.Vector(self.g)
+                self.container.for_all_neighbors(p_i, self.compute_non_pressure_acceleration_task, a_i)
+                self.container.particle_accelerations[p_i] = a_i
 
 
     @ti.func
@@ -124,14 +125,14 @@ class BaseSolver():
         pos_j = self.container.particle_positions[p_j]
         # Compute the viscosity force contribution
         R = pos_i - pos_j
-        v_xy = ti.math.dot(self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j], R)
         nabla_ij = self.cubic_kernel_derivative(R)
+        v_xy = ti.math.dot(self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j], R)
         
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             f_v = d * self.viscosity * (self.container.particle_masses[p_j] / (self.container.particle_densities[p_j])) * v_xy / (
                 R.norm()**2 + 0.01 * self.container.dh**2) * nabla_ij
             ret += f_v
-        
+
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
             # define the numerical propogation c_s
             c_s = 10.0
@@ -140,52 +141,9 @@ class BaseSolver():
             acc = - self.density_0 * self.container.particle_rest_volumes[p_j] * PI * nabla_ij
             ret += acc
 
-            if self.container.particle_is_dynamic[p_j]:
-                # add force to dynamic rigid body from fluid here. 
-                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_rest_volumes[p_j])
-
+            # TODO: add force to dynamic rigid body from fluid here.
   
 
-
-
-    @ti.kernel
-    def compute_pressure_acceleration(self):
-        for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_materials[p_i] == self.container.material_fluid:
-                ret_i = ti.Vector([0.0, 0.0, 0.0])
-                self.container.for_all_neighbors(p_i, self.compute_pressure_acceleration_task, ret_i)
-                self.container.particle_accelerations[p_i] += ret_i
-
-
-    @ti.func
-    def compute_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
-        pos_i = self.container.particle_positions[p_i]
-        pos_j = self.container.particle_positions[p_j]
-        den_i = self.container.particle_densities[p_i]
-        R = pos_i - pos_j
-
-        if self.container.particle_materials[p_j] == self.container.material_fluid:
-            den_j = self.container.particle_densities[p_j]
-
-            ret += (
-                - self.container.particle_masses[p_j] 
-                * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_j] / (den_j * den_j)) 
-                * self.cubic_kernel_derivative(R)
-            )
-
-        elif self.container.particle_materials[p_j] == self.container.material_rigid:
-            # use fluid particle pressure, density as rigid particle pressure, density
-            den_j = self.container.particle_densities[p_i]
-            acc = (
-                - self.density_0 * self.container.particle_rest_volumes[p_j] 
-                * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * self.cubic_kernel_derivative(R)
-            )
-            ret += acc
-
-            if self.container.particle_is_dynamic[p_j]:
-                # add force to dynamic rigid body from fluid here. 
-                self.container.particle_accelerations[p_j] -= (acc * self.container.particle_masses[p_i] / self.density_0 / self.container.particle_rest_volumes[p_j])
-            
 
 
     @ti.kernel
@@ -203,12 +161,13 @@ class BaseSolver():
 
     @ti.func
     def compute_density_task(self, p_i, p_j, ret: ti.template()):
+        # Fluid neighbors and rigid neighbors are treated the same
         pos_i = self.container.particle_positions[p_i]
-        # Fluid neighbors and rigid neighbors are the same here.
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
         R_mod = R.norm()
         ret += self.container.particle_rest_volumes[p_j] * self.cubic_kernel(R_mod)
+
 
     @ti.func
     def simulate_collisions(self, p_i, vec):
@@ -216,7 +175,29 @@ class BaseSolver():
         c_f = 0.5
         self.container.particle_velocities[p_i] -= (
             1.0 + c_f) * self.container.particle_velocities[p_i].dot(vec) * vec
-
+        
+    @ti.kernel
+    def enforce_boundary_2D(self, particle_type:int):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == particle_type and self.container.particle_is_dynamic[p_i]: 
+                pos = self.container.particle_positions[p_i]
+                collision_normal = ti.Vector([0.0, 0.0])
+                if pos[0] > self.container.domain_size[0] - self.container.padding:
+                    collision_normal[0] += 1.0
+                    self.container.particle_positions[p_i][0] = self.container.domain_size[0] - self.container.padding
+                if pos[0] <= self.container.padding:
+                    collision_normal[0] += -1.0
+                    self.container.particle_positions[p_i][0] = self.container.padding
+                if pos[1] > self.container.domain_size[1] - self.container.padding:
+                    collision_normal[1] += 1.0
+                    self.container.particle_positions[p_i][1] = self.container.domain_size[1] - self.container.padding
+                if pos[1] <= self.container.padding:
+                    collision_normal[1] += -1.0
+                    self.container.particle_positions[p_i][1] = self.container.padding
+                collision_normal_length = collision_normal.norm()
+                if collision_normal_length > 1e-6:
+                    self.simulate_collisions(
+                            p_i, collision_normal / collision_normal_length)
     @ti.kernel
     def enforce_boundary_3D(self, particle_type:int):
         for p_i in range(self.container.particle_num[None]):

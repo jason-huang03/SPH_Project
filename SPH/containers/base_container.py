@@ -22,6 +22,7 @@ class BaseContainer:
         self.domain_size = self.domian_end - self.domain_start
 
         self.dim = len(self.domain_size)
+        print(f"Dimension: {self.dim}")
 
         # Material
         self.material_rigid = 0
@@ -31,7 +32,11 @@ class BaseContainer:
         self.dx = self.cfg.get_cfg("particleRadius")
 
         self.particle_diameter = 2 * self.dx
-        self.dh = self.dx * 4.0  # support radius
+        if self.dim == 3:
+            self.dh = self.dx * 4.0  # support radius
+        else:
+            self.dh = self.dx * 3.0  # support radius
+
         self.V0 = 0.8 * self.particle_diameter ** self.dim
 
         self.particle_num = ti.field(int, shape=())
@@ -312,11 +317,15 @@ class BaseContainer:
     @ti.func
     def flatten_grid_index(self, grid_index):
         ret = 0
-        if self.dim == 2:
-            ret = grid_index[0] * self.grid_num[1] + grid_index[1]
-        elif self.dim == 3:
-            ret = grid_index[0] * self.grid_num[1] * self.grid_num[2] + grid_index[1] * self.grid_num[2] + grid_index[2]
+        for i in ti.static(range(self.dim)):
+            ret_p = grid_index[i]
+            for j in ti.static(range(i+1, self.dim)):
+                ret_p *= self.grid_num[j]
+            ret += ret_p
+        
         return ret
+    
+
     
     @ti.func
     def get_flatten_grid_index(self, pos):
@@ -407,16 +416,29 @@ class BaseContainer:
         for i in range(self.particle_num[None]):
             np_arr[i] = src_arr[i]
     
-    def copy_to_vis_buffer(self, invisible_objects=[]):
+    def copy_to_vis_buffer(self, invisible_objects=[], dim=3):
         if len(invisible_objects) != 0:
             self.x_vis_buffer.fill(0.0)
             self.color_vis_buffer.fill(0.0)
         for obj_id in self.object_collection:
             if obj_id not in invisible_objects:
-                self._copy_to_vis_buffer(obj_id)
+                if dim ==3:
+                    self._copy_to_vis_buffer_3d(obj_id)
+                elif dim == 2:
+                    self._copy_to_vis_buffer_2d(obj_id)
+
 
     @ti.kernel
-    def _copy_to_vis_buffer(self, obj_id: int):
+    def _copy_to_vis_buffer_2d(self, obj_id: int):
+        assert self.GGUI
+        domain_size = ti.Vector([self.domain_size[0], self.domain_size[1]])
+        for i in range(self.particle_max_num):
+            if self.particle_object_ids[i] == obj_id:
+                self.x_vis_buffer[i] = self.particle_positions[i] / domain_size
+                self.color_vis_buffer[i] = self.particle_colors[i] / 255.0
+
+    @ti.kernel
+    def _copy_to_vis_buffer_3d(self, obj_id: int):
         assert self.GGUI
         # FIXME: make it equal to actual particle num
         for i in range(self.particle_max_num):
@@ -505,6 +527,7 @@ class BaseContainer:
         new_positions = new_positions.reshape(-1,
                                               reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
         print("new position shape ", new_positions.shape)
+
         if velocity is None:
             velocity_arr = np.full_like(new_positions, 0, dtype=np.float32)
         else:

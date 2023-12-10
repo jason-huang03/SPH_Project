@@ -16,24 +16,26 @@ class PCISPHSolver(BaseSolver):
     @ti.kernel
     def compute_pcisph_k(self):
         for p_i in range(self.container.particle_num[None]):
-            ret_i = ti.Vector([0.0, 0.0, 0.0, 0.0])
-            self.container.for_all_neighbors(p_i, self.compute_pcisph_k_task, ret_i)
-            sum_nabla = ti.Vector([0.0, 0.0, 0.0])
-            for i in ti.static(range(self.container.dim)):
-                sum_nabla[i] = ret_i[i]
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                ret_i = ti.Vector([0.0, 0.0, 0.0, 0.0])
+                self.container.for_all_neighbors(p_i, self.compute_pcisph_k_task, ret_i)
+                sum_nabla = ti.Vector([0.0, 0.0, 0.0])
+                for i in ti.static(range(self.container.dim)):
+                    sum_nabla[i] = ret_i[i]
 
-            volume_i = self.container.particle_rest_volumes[p_i]
+                volume_i = self.container.particle_rest_volumes[p_i]
 
-            self.container.particle_pcisph_k[p_i] = (
-                - 0.5 
-                / (ti.math.dot(sum_nabla, sum_nabla) + ret_i[3]) 
-                / (self.dt[None] * volume_i)
-                / (self.dt[None] * volume_i) 
-            )
+                self.container.particle_pcisph_k[p_i] = (
+                    - 0.5 
+                    / (ti.math.dot(sum_nabla, sum_nabla) + ret_i[3]) 
+                    / (self.dt[None] * volume_i)
+                    / (self.dt[None] * volume_i) 
+                )
 
 
     @ti.func
     def compute_pcisph_k_task(self, p_i, p_j, ret: ti.template()):
+        # Fluid neighbor and rigid neighbor are treated the same here
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
@@ -48,132 +50,117 @@ class PCISPHSolver(BaseSolver):
     @ti.kernel
     def compute_density_star(self):
         for p_i in range(self.container.particle_num[None]):
-            density_i = 0.0
-            self.container.for_all_neighbors(p_i, self.compute_density_star_task, density_i)
-            density_i *= self.dt[None]
-            density_i += self.container.particle_densities[p_i]
-            self.container.particle_densities_star[p_i] = density_i
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                density_i = 0.0
+                self.container.for_all_neighbors(p_i, self.compute_density_star_task, density_i)
+                density_i *= self.dt[None]
+                density_i += self.container.particle_densities[p_i]
+                self.container.particle_densities_star[p_i] = density_i
 
     
     @ti.func
     def compute_density_star_task(self, p_i, p_j, ret: ti.template()):
+        # Fluid neighbor and rigid neighbor are treated the same here
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
-        m_j = self.container.particle_masses[p_j]
+        nabla_ij = self.cubic_kernel_derivative(R)
         v_ij = self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j]
+        m_j = self.container.particle_rest_volumes[p_j] * self.density_0
         a_ij = self.container.particle_accelerations[p_i] - self.container.particle_accelerations[p_j]
         ret += (
-            m_j * ti.math.dot(v_ij, self.cubic_kernel_derivative(R))
-            + m_j * self.dt[None] * ti.math.dot(a_ij, self.cubic_kernel_derivative(R))
+            m_j * ti.math.dot(v_ij, nabla_ij)
+            + m_j * self.dt[None] * ti.math.dot(a_ij, nabla_ij)
         )
 
 
     @ti.kernel
     def compute_pressure(self):
         for p_i in range(self.container.particle_num[None]):
-            self.container.particle_pressures[p_i] = (
-                self.container.particle_pcisph_k[p_i] 
-                * (self.density_0 - self.container.particle_densities_star[p_i])
-            )
-
-            if self.container.particle_pressures[p_i] < 0.0:
-                self.container.particle_pressures[p_i] = 0.0
-
-    @ti.kernel
-    def compute_non_pressure_acceleration(self):
-        for p_i in range(self.container.particle_num[None]):
-            ############## Body force ###############
-            # Add body force
-            a_i = ti.Vector(self.g)
-            self.container.particle_accelerations[p_i] = a_i
             if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.container.for_all_neighbors(p_i, self.compute_non_pressure_acceleration_task, a_i)
-                self.container.particle_accelerations[p_i] = a_i
+                self.container.particle_pressures[p_i] = (
+                    self.container.particle_pcisph_k[p_i] 
+                    * (self.density_0 - self.container.particle_densities_star[p_i])
+                )
 
-
-    @ti.func
-    def compute_non_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
-        pos_i = self.container.particle_positions[p_i]
-        
-        ############## Surface Tension ###############
-        if self.container.particle_materials[p_j] == self.container.material_fluid:
-            # Fluid neighbors
-            diameter2 = self.container.particle_diameter * self.container.particle_diameter
-            pos_j = self.container.particle_positions[p_j]
-            R = pos_i - pos_j
-            R2 = ti.math.dot(R, R)
-            if R2 > diameter2:
-                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.cubic_kernel(R.norm())
-            else:
-                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.cubic_kernel(ti.Vector([self.container.particle_diameter, 0.0, 0.0]).norm())
-            
-        
-        ############### Viscosoty Force ###############
-        d = 2 * (self.container.dim + 2)
-        pos_j = self.container.particle_positions[p_j]
-        # Compute the viscosity force contribution
-        R = pos_i - pos_j
-        v_xy = ti.math.dot(self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j], R)
-        
-        if self.container.particle_materials[p_j] == self.container.material_fluid:
-            f_v = d * self.viscosity * (self.container.particle_masses[p_j] / (self.container.particle_densities[p_j])) * v_xy / (
-                R.norm()**2 + 0.01 * self.container.dh**2) * self.cubic_kernel_derivative(R)
-            ret += f_v
-  
+                if self.container.particle_pressures[p_i] < 0.0:
+                    self.container.particle_pressures[p_i] = 0.0
 
 
 
     @ti.kernel
     def compute_pressure_acceleration(self):
         for p_i in range(self.container.particle_num[None]):
-            ret_i = ti.Vector([0.0, 0.0, 0.0])
-            self.container.for_all_neighbors(p_i, self.compute_pressure_acceleration_task, ret_i)
-            self.container.particle_pressure_accelerations[p_i] = ret_i
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                ret_i = ti.Vector([0.0, 0.0, 0.0])
+                self.container.for_all_neighbors(p_i, self.compute_pressure_acceleration_task, ret_i)
+                self.container.particle_pressure_accelerations[p_i] = ret_i
 
 
     @ti.func
     def compute_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
-        den_i = self.container.particle_densities[p_i]
-        den_j = self.container.particle_densities[p_j]
         R = pos_i - pos_j
-        ret += (
-            - self.container.particle_masses[p_j] * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_j] / (den_j * den_j)) * self.cubic_kernel_derivative(R)
-        )
+        nabla_ij = self.cubic_kernel_derivative(R)
+
+        if self.container.particle_materials[p_j] == self.container.material_fluid:
+            den_i = self.container.particle_densities[p_i]
+            den_j = self.container.particle_densities[p_j]
+
+            ret += (
+                - self.container.particle_rest_volumes[p_j] * self.density_0 * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_j] / (den_j * den_j)) * nabla_ij
+            )
+
+        elif self.container.particle_materials[p_j] == self.container.material_rigid:
+            den_i = self.container.particle_densities[p_i]
+            den_j = den_i
+            pressure_i = self.container.particle_pressures[p_i]
+            pressure_j = pressure_i
+
+            ret += (
+                - self.density_0 * self.container.particle_rest_volumes[p_j] * (pressure_i / (den_i * den_i) + pressure_j / (den_j * den_j)) * nabla_ij
+            )
+
+            # TODO: add force to dynamic rigid body from fluid here.
+
+
 
     @ti.kernel
     def compute_density_change(self):
         for p_i in range(self.container.particle_num[None]):
-            density_change_i = 0.0
-            self.container.for_all_neighbors(p_i, self.compute_density_change_task, density_change_i)
-            density_change_i *= self.dt[None]
-            self.container.particle_densities_change[p_i] = density_change_i
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                density_change_i = 0.0
+                self.container.for_all_neighbors(p_i, self.compute_density_change_task, density_change_i)
+                density_change_i *= self.dt[None]
+                self.container.particle_densities_change[p_i] = density_change_i
 
     @ti.func
     def compute_density_change_task(self, p_i, p_j, ret: ti.template()):
+        # Fluid neighbor and rigid neighbor are treated the same here
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
         R = pos_i - pos_j
         nabla_ij = self.cubic_kernel_derivative(R)
         a_ij = self.container.particle_pressure_accelerations[p_i] - self.container.particle_pressure_accelerations[p_j]
-        ret += self.container.particle_masses[p_j] * ti.math.dot(a_ij, nabla_ij) * self.dt[None]
+        ret += self.container.particle_rest_volumes[p_j] * self.density_0 * ti.math.dot(a_ij, nabla_ij) * self.dt[None]
 
 
     @ti.kernel
     def update_pressure(self):
         for p_i in range(self.container.particle_num[None]):
             # ! how to treat sparse area?
-            if self.container.particle_densities_star[p_i] > self.density_0 + 1e-5:
-                self.container.particle_pressures[p_i] += self.container.particle_pcisph_k[p_i] * (self.density_0 - self.container.particle_densities_star[p_i])
-                ret = 0.0
-                self.container.for_all_neighbors(p_i, self.update_pressure_task, ret)
-                self.container.particle_pressures[p_i] += ret * self.dt[None]
+            if self.container.particle_materials[p_i] == self.container.material_fluid: 
+                if self.container.particle_densities_star[p_i] > self.density_0 + 1e-5:
+                    self.container.particle_pressures[p_i] += self.container.particle_pcisph_k[p_i] * (self.density_0 - self.container.particle_densities_star[p_i])
+                    ret = 0.0
+                    self.container.for_all_neighbors(p_i, self.update_pressure_task, ret)
+                    self.container.particle_pressures[p_i] += ret * self.dt[None]
 
 
     @ti.func
     def update_pressure_task(self, p_i, p_j, ret: ti.template()):
+        # Fluid neighbor and rigid neighbor are treated the same here
         a_ij = self.container.particle_pressure_accelerations[p_i] - self.container.particle_pressure_accelerations[p_j]
         R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
         nabla_ij = self.cubic_kernel_derivative(R)
@@ -181,18 +168,19 @@ class PCISPHSolver(BaseSolver):
             - self.container.particle_pcisph_k[p_i]
             * self.dt[None]
             * ti.math.dot(a_ij, nabla_ij)
-            * self.container.particle_masses[p_j]
+            * self.container.particle_rest_volumes[p_j] * self.density_0
         )
 
     @ti.kernel
     def compute_density_error(self) -> ti.f32:
         error = 0.0
         for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_densities_star[p_i] > self.density_0 + 1e-5:
-                error += (
-                    (self.density_0 - self.container.particle_densities_star[p_i] + self.container.particle_densities_change[p_i]) 
-                    / self.density_0
-                )
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                if self.container.particle_densities_star[p_i] > self.density_0 + 1e-5:
+                    error += (
+                        (self.density_0 - self.container.particle_densities_star[p_i] + self.container.particle_densities_change[p_i]) 
+                        / self.density_0
+                    )
 
         error = error / self.container.particle_num[None]
         return error
@@ -221,7 +209,8 @@ class PCISPHSolver(BaseSolver):
         update velocity for each particle from acceleration
         """
         for p_i in range(self.container.particle_num[None]):
-            self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i] + self.dt[None] * self.container.particle_pressure_accelerations[p_i]
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i] + self.dt[None] * self.container.particle_pressure_accelerations[p_i]
 
     @ti.kernel
     def update_fluid_position(self):
@@ -229,12 +218,14 @@ class PCISPHSolver(BaseSolver):
         update position for each particle from velocity
         """
         for p_i in range(self.container.particle_num[None]):
-            self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
     
 
 
     def step(self):
         self.container.prepare_neighborhood_search()
+        self.init_acceleration()
         self.compute_pcisph_k()
         self.compute_density()
         self.compute_non_pressure_acceleration()

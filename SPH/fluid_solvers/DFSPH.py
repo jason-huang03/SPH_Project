@@ -20,49 +20,6 @@ class DFSPHSolver(BaseSolver):
     
 
     @ti.kernel
-    def compute_non_pressure_acceleration(self):
-        for p_i in range(self.container.particle_num[None]):
-            ############## Body force ###############
-            # Add body force
-            a_i = ti.Vector(self.g)
-            self.container.particle_accelerations[p_i] = a_i
-            if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.container.for_all_neighbors(p_i, self.compute_non_pressure_acceleration_task, a_i)
-                self.container.particle_accelerations[p_i] = a_i
-
-
-    @ti.func
-    def compute_non_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
-        pos_i = self.container.particle_positions[p_i]
-        
-        ############## Surface Tension ###############
-        if self.container.particle_materials[p_j] == self.container.material_fluid:
-            # Fluid neighbors
-            diameter2 = self.container.particle_diameter * self.container.particle_diameter
-            pos_j = self.container.particle_positions[p_j]
-            R = pos_i - pos_j
-            R2 = ti.math.dot(R, R)
-            if R2 > diameter2:
-                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.cubic_kernel(R.norm())
-            else:
-                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.cubic_kernel(ti.Vector([self.container.particle_diameter, 0.0, 0.0]).norm())
-            
-        
-        ############### Viscosoty Force ###############
-        d = 2 * (self.container.dim + 2)
-        pos_j = self.container.particle_positions[p_j]
-        # Compute the viscosity force contribution
-        R = pos_i - pos_j
-        v_xy = ti.math.dot(self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j], R)
-        
-        if self.container.particle_materials[p_j] == self.container.material_fluid:
-            f_v = d * self.viscosity * (self.container.particle_masses[p_j] / (self.container.particle_densities[p_j])) * v_xy / (
-                R.norm()**2 + 0.01 * self.container.dh**2) * self.cubic_kernel_derivative(R)
-            ret += f_v
-  
-
-
-    @ti.kernel
     def compute_alpha(self):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] != self.container.material_fluid:
@@ -70,12 +27,12 @@ class DFSPHSolver(BaseSolver):
             sum_grad_p_k = 0.0
             grad_p_i = ti.Vector([0.0 for _ in range(self.container.dim)])
             
-            ret = ti.Vector([0.0, 0.0, 0.0, 0.0])
+            ret = ti.Vector([0.0 for _ in range(self.container.dim+1)])
             
             self.container.for_all_neighbors(p_i, self.compute_alpha_task, ret)
             
-            sum_grad_p_k = ret[3]
-            for i in ti.static(range(3)):
+            sum_grad_p_k = ret[self.container.dim]
+            for i in ti.static(range(self.container.dim)):
                 grad_p_i[i] = ret[i]
             sum_grad_p_k += grad_p_i.norm_sqr()
 
@@ -93,8 +50,15 @@ class DFSPHSolver(BaseSolver):
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             # Fluid neighbors
             grad_p_j = -self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
-            ret[3] += grad_p_j.norm_sqr() # sum_grad_p_k
-            for i in ti.static(range(3)): # grad_p_i
+            ret[self.container.dim] += grad_p_j.norm_sqr() # sum_grad_p_k
+            for i in ti.static(range(self.container.dim)): # grad_p_i
+                ret[i] += grad_p_j[i]
+        
+        elif self.container.particle_materials[p_j] == self.container.material_rigid:
+            # Rigid neighbors
+            # we suppose the rigid body is not dynamic, so it cannot have acceleration. So we discard one term in the equation.
+            grad_p_j = -self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+            for i in ti.static(range(self.container.dim)):
                 ret[i] += grad_p_j[i]
     
     ################# Density Related Computation #################
@@ -104,28 +68,28 @@ class DFSPHSolver(BaseSolver):
         compute (D rho / Dt) / rho_0 for each particle
         """
         for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_materials[p_i] != self.container.material_fluid:
-                continue
-            ret = ti.Struct(density_adv=0.0, num_neighbors=0)
-            self.container.for_all_neighbors(p_i, self.compute_density_derivative_task, ret)
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                ret = ti.Struct(density_adv=0.0, num_neighbors=0)
+                self.container.for_all_neighbors(p_i, self.compute_density_derivative_task, ret)
 
-            # only correct positive divergence
-            density_adv = ti.max(ret.density_adv, 0.0)
-            num_neighbors = ret.num_neighbors
+                # only correct positive divergence
+                density_adv = ti.max(ret.density_adv, 0.0)
+                num_neighbors = ret.num_neighbors
 
-            # Do not perform divergence solve when paritlce deficiency happens
-            if self.container.dim == 3:
-                if num_neighbors < 20:
-                    density_adv = 0.0
-            else:
-                if num_neighbors < 7:
-                    density_adv = 0.0
-     
-            self.container.particle_densities_derivatives[p_i] = density_adv
+                # Do not perform divergence solve when paritlce deficiency happens
+                if self.container.dim == 3:
+                    if num_neighbors < 20:
+                        density_adv = 0.0
+                else:
+                    if num_neighbors < 7:
+                        density_adv = 0.0
+        
+                self.container.particle_densities_derivatives[p_i] = density_adv
 
 
     @ti.func
     def compute_density_derivative_task(self, p_i, p_j, ret: ti.template()):
+        # Fluid neighbor and rigid neighbor are treated the same
         v_i = self.container.particle_velocities[p_i]
         v_j = self.container.particle_velocities[p_j]
         pos_i = self.container.particle_positions[p_i]
@@ -143,20 +107,21 @@ class DFSPHSolver(BaseSolver):
         """
         for p_i in range(self.container.particle_num[None]):
             delta = 0.0
-            self.container.for_all_neighbors(p_i, self.compute_density_star_task, delta)
-            density_adv = self.container.particle_densities[p_i] /self.density_0 + self.dt[None] * delta
-            self.container.particle_densities_star[p_i] = ti.max(density_adv, 1.0)
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.container.for_all_neighbors(p_i, self.compute_density_star_task, delta)
+                density_adv = self.container.particle_densities[p_i] /self.density_0 + self.dt[None] * delta
+                self.container.particle_densities_star[p_i] = ti.max(density_adv, 1.0)
 
 
     @ti.func
     def compute_density_star_task(self, p_i, p_j, ret: ti.template()):
+        # Fluid neighbor and rigid neighbor are treated the same
         v_i = self.container.particle_velocities[p_i]
         v_j = self.container.particle_velocities[p_j]
         pos_i = self.container.particle_positions[p_i]
         pos_j = self.container.particle_positions[p_j]
-        if self.container.particle_materials[p_j] == self.container.material_fluid:
-            # Fluid neighbors
-            ret += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j,self.cubic_kernel_derivative(pos_i - pos_j))
+            
+        ret += self.container.particle_rest_volumes[p_j] * ti.math.dot(v_i - v_j,self.cubic_kernel_derivative(pos_i - pos_j))
 
     ################# End of Density Related Computation #################
 
@@ -165,7 +130,8 @@ class DFSPHSolver(BaseSolver):
     @ti.kernel
     def compute_kappa_v(self):
         for idx_i in range(self.container.particle_num[None]):
-            self.container.particle_dfsph_kappa_v[idx_i] = self.container.particle_densities_derivatives[idx_i] * self.container.particle_dfsph_alphas[idx_i] 
+            if self.container.particle_materials[idx_i] == self.container.material_fluid:
+                self.container.particle_dfsph_kappa_v[idx_i] = self.container.particle_densities_derivatives[idx_i] * self.container.particle_dfsph_alphas[idx_i] 
 
             
     def correct_divergence_error(self):
@@ -194,14 +160,13 @@ class DFSPHSolver(BaseSolver):
     @ti.kernel
     def correct_divergence_step(self):
         for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_materials[p_i] != self.container.material_fluid:
-                continue
-            k_i = self.container.particle_dfsph_kappa_v[p_i]
-            ret = ti.Struct(dv=ti.Vector([0.0 for _ in range(self.container.dim)]), k_i=k_i)
-      
-            self.container.for_all_neighbors(p_i, self.correct_divergence_task, ret)
-            self.container.particle_velocities[p_i] += ret.dv
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                k_i = self.container.particle_dfsph_kappa_v[p_i]
+                ret = ti.Struct(dv=ti.Vector([0.0 for _ in range(self.container.dim)]), k_i=k_i)
         
+                self.container.for_all_neighbors(p_i, self.correct_divergence_task, ret)
+                self.container.particle_velocities[p_i] += ret.dv
+            
     
     @ti.func
     def correct_divergence_task(self, p_i, p_j, ret: ti.template()):
@@ -213,6 +178,17 @@ class DFSPHSolver(BaseSolver):
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
                 grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 ret.dv -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
+
+        elif self.container.particle_materials[p_j] == self.container.material_rigid:
+            k_i = ret.k_i
+            k_j = k_i
+            k_sum = k_i + k_j
+            den_i = self.container.particle_densities[p_i]
+            den_j = den_i
+            if ti.abs(k_sum) > self.m_eps * self.dt[None]:
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                ret.dv -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
+                # TODO: add force to dynamic rigid body from fluid here.
 
     @ti.kernel
     def compute_density_derivative_error(self) -> float:
@@ -230,7 +206,8 @@ class DFSPHSolver(BaseSolver):
     def compute_kappa(self):
         delta_t_inv = 1 / (self.dt[None])
         for idx_i in range(self.container.particle_num[None]):
-            self.container.particle_dfsph_kappa[idx_i] = (self.container.particle_densities_star[idx_i] - 1.0) * self.container.particle_dfsph_alphas[idx_i] * delta_t_inv
+            if self.container.particle_materials[idx_i] == self.container.material_fluid:
+                self.container.particle_dfsph_kappa[idx_i] = (self.container.particle_densities_star[idx_i] - 1.0) * self.container.particle_dfsph_alphas[idx_i] * delta_t_inv
 
     def correct_density_error(self):
         # TODO: warm start
@@ -260,12 +237,10 @@ class DFSPHSolver(BaseSolver):
     def correct_density_error_step(self):
         # Compute pressure forces
         for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_materials[p_i] != self.container.material_fluid:
-                continue
-            k_i = self.container.particle_dfsph_kappa[p_i]
-
-            self.container.for_all_neighbors(p_i, self.correct_density_error_task, k_i)
-    
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                k_i = self.container.particle_dfsph_kappa[p_i]
+                self.container.for_all_neighbors(p_i, self.correct_density_error_task, k_i)
+        
 
     @ti.func
     def correct_density_error_task(self, p_i, p_j, k_i: ti.template()):
@@ -275,8 +250,18 @@ class DFSPHSolver(BaseSolver):
             k_sum = k_i +  k_j 
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
                 grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
-                # Directly update velocities instead of storing pressure accelerations
                 self.container.particle_velocities[p_i] -= grad_p_j * (k_i / self.container.particle_densities[p_i] + k_j / self.container.particle_densities[p_j]) * self.density_0
+
+        elif self.container.particle_materials[p_j] == self.container.material_rigid:
+            # Rigid neighbors
+            k_j = k_i
+            den_i = self.container.particle_densities[p_i]
+            den_j=  den_i
+            k_sum = k_i + k_j
+            if ti.abs(k_sum) > self.m_eps * self.dt[None]:
+                grad_p_j = self.container.particle_rest_volumes[p_j] * self.cubic_kernel_derivative(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
+                self.container.particle_velocities[p_i] -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
+                # TODO: add force to dynamic rigid body from fluid here.
 
     @ti.kernel
     def compute_density_error(self) -> float:
@@ -317,12 +302,15 @@ class DFSPHSolver(BaseSolver):
         self.correct_density_error()
 
         self.update_fluid_position()
-        self.enforce_boundary_3D(self.container.material_fluid)
+
+        if self.container.dim == 3:
+            self.enforce_boundary_3D(self.container.material_fluid)
+        else:
+            self.enforce_boundary_2D(self.container.material_fluid)
 
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_alpha()
-        
         self.correct_divergence_error()
 
     def prepare(self):
