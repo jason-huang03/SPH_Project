@@ -15,4 +15,3 @@ class DFSPHContainer(BaseContainer):
         self.particle_dfsph_kappa_v = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities_star = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities_derivatives = ti.field(dtype=float, shape=self.particle_max_num)
-

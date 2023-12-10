@@ -15,8 +15,8 @@ class DFSPHSolver(BaseSolver):
 
         self.m_eps = 1e-5
 
-        self.max_error_V = 0.1
-        self.max_error = 0.05
+        self.max_error_V = 0.001
+        self.max_error = 0.0001
     
 
     @ti.kernel
@@ -132,14 +132,10 @@ class DFSPHSolver(BaseSolver):
         for idx_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[idx_i] == self.container.material_fluid:
                 self.container.particle_dfsph_kappa_v[idx_i] = self.container.particle_densities_derivatives[idx_i] * self.container.particle_dfsph_alphas[idx_i] 
-
-            
+    
     def correct_divergence_error(self):
-        # TODO: warm start 
-        self.compute_density_derivative()
-
         num_itr = 0
-        
+        self.compute_density_derivative()
         average_density_derivative_error = 0.0
 
         while num_itr < 1 or num_itr < self.m_max_iterations_v:
@@ -150,11 +146,12 @@ class DFSPHSolver(BaseSolver):
             average_density_derivative_error = self.compute_density_derivative_error()
             # Max allowed density fluctuation
             # use max density error divided by time step size
-            eta = 1.0 / self.dt[None] * self.max_error_V * 0.01 * self.density_0
+            eta = self.max_error_V * self.density_0 / self.dt[None]
 
             if average_density_derivative_error <= eta:
                 break
             num_itr += 1
+        
         print(f"DFSPH - iteration V: {num_itr} Avg density err: {average_density_derivative_error}")
 
     @ti.kernel
@@ -223,7 +220,7 @@ class DFSPHSolver(BaseSolver):
             self.compute_density_star()
             average_density_error = self.compute_density_error()
             # Max allowed density fluctuation
-            eta = self.max_error * 0.01
+            eta = self.max_error
             if average_density_error <= eta:
                 break
             num_itr += 1

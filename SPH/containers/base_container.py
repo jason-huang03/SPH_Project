@@ -143,6 +143,8 @@ class BaseContainer:
         self.particle_colors_buffer = ti.Vector.field(3, dtype=int, shape=self.particle_max_num)
         self.is_dynamic_buffer = ti.field(dtype=int, shape=self.particle_max_num)
 
+        # Visibility of object
+        self.object_visibility = ti.field(dtype=int, shape=10)
 
         # Grid id for each particle
         self.grid_ids = ti.field(int, shape=self.particle_max_num)
@@ -166,6 +168,12 @@ class BaseContainer:
             velocity = fluid["velocity"]
             density = fluid["density"]
             color = fluid["color"]
+
+            if "visible" in fluid:
+                self.object_visibility[obj_id] = fluid["visible"]
+            else:
+                self.object_visibility[obj_id] = 1
+
             self.add_cube(object_id=obj_id,
                           lower_corner=start,
                           cube_size=(end-start)*scale,
@@ -191,6 +199,11 @@ class BaseContainer:
                 velocity = np.array([0.0 for _ in range(self.dim)], dtype=np.float32)
             density = rigid_body["density"]
             color = np.array(rigid_body["color"], dtype=np.int32)
+
+            if "visible" in rigid_body:
+                self.object_visibility[obj_id] = rigid_body["visible"]
+            else:
+                self.object_visibility[obj_id] = 1
 
             #TODO: deal with different spacing
             self.add_particles(obj_id,
@@ -226,6 +239,13 @@ class BaseContainer:
             density = rigid_block["density"]
             color = rigid_block["color"]
             is_dynamic = rigid_block["isDynamic"]
+
+            if "visible" in rigid_block:
+                self.object_visibility[obj_id] = rigid_block["visible"]
+            else:
+                self.object_visibility[obj_id] = 1
+
+                
             self.add_cube(object_id=obj_id,
                           lower_corner=start,
                           cube_size=(end-start)*scale,
@@ -429,11 +449,8 @@ class BaseContainer:
             np_arr[i] = src_arr[i]
     
     def copy_to_vis_buffer(self, invisible_objects=[], dim=3):
-        if len(invisible_objects) != 0:
-            self.x_vis_buffer.fill(0.0)
-            self.color_vis_buffer.fill(0.0)
         for obj_id in self.object_collection:
-            if obj_id not in invisible_objects:
+            if self.object_visibility[obj_id] == 1:
                 if dim ==3:
                     self._copy_to_vis_buffer_3d(obj_id)
                 elif dim == 2:

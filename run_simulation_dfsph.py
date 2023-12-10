@@ -22,6 +22,10 @@ if __name__ == "__main__":
     substeps = config.get_cfg("numberOfStepsPerRenderUpdate")
     output_frames = config.get_cfg("exportFrame")
     output_interval = max(int(0.016 / config.get_cfg("timeStepSize")), 1)
+    
+    if config.get_cfg("outputInterval"):
+        output_interval = config.get_cfg("outputInterval")
+
     output_ply = config.get_cfg("exportPly")
     output_obj = config.get_cfg("exportObj")
     series_prefix = "{}_output/particle_object_{}.ply".format(scene_name, "{}")
