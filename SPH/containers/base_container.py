@@ -36,10 +36,17 @@ class BaseContainer:
             self.dh = self.dx * 4.0  # support radius
         else:
             self.dh = self.dx * 3.0  # support radius
+
+        if self.cfg.get_cfg("supportRadius"):
+            self.dh = self.cfg.get_cfg("supportRadius")
         
 
-        self.V0 = 0.8 * self.particle_diameter ** self.dim
+        self.particle_spacing = self.particle_diameter
+        if self.cfg.get_cfg("particleSpacing"):
+            self.particle_spacing = self.cfg.get_cfg("particleSpacing")
 
+        #  ! remember to change back
+        self.V0 = 0.8 * self.particle_diameter ** self.dim
         self.particle_num = ti.field(int, shape=())
 
         # Grid related properties
@@ -58,7 +65,7 @@ class BaseContainer:
         fluid_particle_num = 0
         rigid_body_particle_num = 0
         for fluid in fluid_blocks:
-            particle_num = self.compute_cube_particle_num(fluid["start"], fluid["end"])
+            particle_num = self.compute_cube_particle_num(fluid["start"], fluid["end"], space=self.particle_spacing)
             fluid["particleNum"] = particle_num
             self.object_collection[fluid["objectId"]] = fluid
             fluid_particle_num += particle_num
@@ -69,6 +76,7 @@ class BaseContainer:
         num_rigid_bodies = len(rigid_bodies)
         print(f"Number of rigid bodies: {num_rigid_bodies}")
         for rigid_body in rigid_bodies:
+            # TODO: handle differenc spacing
             voxelized_points_np = self.load_rigid_body(rigid_body)
             rigid_body["particleNum"] = voxelized_points_np.shape[0]
             rigid_body["voxelizedPoints"] = voxelized_points_np
@@ -78,7 +86,7 @@ class BaseContainer:
         #### Process Rigid Blocks ####
         rigid_blocks = self.cfg.get_rigid_blocks()
         for rigid_block in rigid_blocks:
-            particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"])
+            particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"], space=self.particle_spacing)
             rigid_block["particleNum"] = particle_num
             self.object_collection[rigid_block["objectId"]] = rigid_block
             rigid_body_particle_num += particle_num
@@ -165,7 +173,8 @@ class BaseContainer:
                           density=density, 
                           is_dynamic=1, 
                           color=color,
-                          material=1) # 1 indicates fluid
+                          material=1,# 1 indicates fluid
+                          space=self.particle_spacing) 
 
 
         # Rigid body
@@ -183,6 +192,7 @@ class BaseContainer:
             density = rigid_body["density"]
             color = np.array(rigid_body["color"], dtype=np.int32)
 
+            #TODO: deal with different spacing
             self.add_particles(obj_id,
                                num_particles_obj,
                                np.array(voxelized_points_np, dtype=np.float32), # position
@@ -223,7 +233,8 @@ class BaseContainer:
                           density=density, 
                           is_dynamic=is_dynamic,
                           color=color,
-                          material=0) # 1 indicates solid
+                          material=0,# 0 indicates solid
+                          space=self.particle_spacing) 
 
 
 
@@ -490,11 +501,13 @@ class BaseContainer:
         return voxelized_points_np
 
 
-    def compute_cube_particle_num(self, start, end):
+    def compute_cube_particle_num(self, start, end, space=None):
+        if space is None:
+            space = self.particle_diameter
         num_dim = []
         for i in range(self.dim):
             num_dim.append(
-                np.arange(start[i], end[i], self.particle_diameter))
+                np.arange(start[i], end[i], space))
         return reduce(lambda x, y: x * y,
                                    [len(n) for n in num_dim])
 
@@ -507,16 +520,19 @@ class BaseContainer:
                  color=(0,0,0),
                  density=None,
                  pressure=None,
-                 velocity=None):
+                 velocity=None,
+                 space=None,
+                ):
         """
-        add particles spaced by particle diameter
+        add particles spaced by space in a cube
         """
-
+        if space is None:
+            space = self.particle_diameter
         num_dim = []
         for i in range(self.dim):
             num_dim.append(
                 np.arange(lower_corner[i], lower_corner[i] + cube_size[i],
-                          self.particle_diameter))
+                          space))
         num_new_particles = reduce(lambda x, y: x * y,
                                    [len(n) for n in num_dim])
         print('particle num ', num_new_particles)

@@ -17,33 +17,33 @@ class PBFSolver(BaseSolver):
 
 
 
-    # @ti.func
-    # def kernel_W(self, R_mod):
-    #     # poly6 kernel
-    #     h = self.container.dh
-    #     res = 0.0
+    @ti.func
+    def kernel_W(self, R_mod):
+        # poly6 kernel
+        h = self.container.dh
+        res = 0.0
 
-    #     if R_mod > 0 and R_mod < h:
-    #         x = (h * h - R_mod * R_mod) / (h * h * h)
-    #         res = self.poly6d_fac * x * x * x
+        if R_mod > 0 and R_mod < h:
+            x = (h * h - R_mod * R_mod) / (h * h * h)
+            res = self.poly6d_fac * x * x * x
 
-    #     return res
+        return res
 
 
     
-    # @ti.func
-    # def kernel_gradient(self, R):
-    #     # spiky gradient
-    #     R_mod = R.norm()
-    #     h = self.container.dh
+    @ti.func
+    def kernel_gradient(self, R):
+        # spiky gradient
+        R_mod = R.norm()
+        h = self.container.dh
 
-    #     res = ti.Vector([0.0 for _ in range(self.container.dim)])
+        res = ti.Vector([0.0 for _ in range(self.container.dim)])
 
-    #     if R_mod > 0 and R_mod < h:
-    #         x = (h - R_mod) / (h * h * h)
-    #         res = self.spiky_grad_fac * x * x * R / R_mod
+        if R_mod > 0 and R_mod < h:
+            x = (h - R_mod) / (h * h * h)
+            res = self.spiky_grad_fac * x * x * R / R_mod
 
-    #     return res
+        return res
 
 
     @ti.func
@@ -147,11 +147,12 @@ class PBFSolver(BaseSolver):
         self.update_fluid_velocity()
         self.save_old_position()
         self.update_fluid_position()
-        self.enforce_boundary_3D(self.container.material_fluid)
+
+        self.enforce_boundary(self.container.material_fluid)
 
         self.refine()
 
-        self.enforce_boundary_3D(self.container.material_fluid)
+        self.enforce_boundary(self.container.material_fluid)
 
         self.recompute_fluid_velocity()
 

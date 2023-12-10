@@ -9,9 +9,12 @@ class BaseSolver():
         self.g = ti.Vector([0.0, -9.81, 0.0])  # Gravity
         if self.container.dim == 2:
             self.g = ti.Vector([0.0, -9.81])
+        
+        self.g = np.array(self.container.cfg.get_cfg("gravitation"))
 
         self.viscosity = 0.01
         self.density_0 = 1000.0  
+        self.density_0 = self.container.cfg.get_cfg("density0")
         self.surface_tension = 0.01
 
         self.dt = ti.field(float, shape=())
@@ -232,6 +235,11 @@ class BaseSolver():
                     self.simulate_collisions(
                             p_i, collision_normal / collision_normal_length)
 
+    def enforce_boundary(self, particle_type:int):
+        if self.container.dim == 2:
+            self.enforce_boundary_2D(particle_type)
+        elif self.container.dim == 3:
+            self.enforce_boundary_3D(particle_type)
 
     @ti.kernel
     def update_fluid_velocity(self):

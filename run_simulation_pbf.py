@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     substeps = config.get_cfg("numberOfStepsPerRenderUpdate")
     output_frames = config.get_cfg("exportFrame")
-    output_interval = int(0.016 / config.get_cfg("timeStepSize"))
+    output_interval = max(int(0.048 / config.get_cfg("timeStepSize")), 1)
     output_ply = config.get_cfg("exportPly")
     output_obj = config.get_cfg("exportObj")
     series_prefix = "{}_output/particle_object_{}.ply".format(scene_name, "{}")
@@ -57,17 +57,20 @@ if __name__ == "__main__":
         invisible_objects = []
 
     # Draw the lines for domain
-    x_max, y_max, z_max = config.get_cfg("domainEnd")
-    box_anchors = ti.Vector.field(3, dtype=ti.f32, shape = 8)
-    box_anchors[0] = ti.Vector([0.0, 0.0, 0.0])
-    box_anchors[1] = ti.Vector([0.0, y_max, 0.0])
-    box_anchors[2] = ti.Vector([x_max, 0.0, 0.0])
-    box_anchors[3] = ti.Vector([x_max, y_max, 0.0])
+    domain_end = config.get_cfg("domainEnd")
+    dim = len(domain_end)
+    if len(domain_end) == 3:
+        x_max, y_max, z_max = domain_end
+        box_anchors = ti.Vector.field(3, dtype=ti.f32, shape = 8)
+        box_anchors[0] = ti.Vector([0.0, 0.0, 0.0])
+        box_anchors[1] = ti.Vector([0.0, y_max, 0.0])
+        box_anchors[2] = ti.Vector([x_max, 0.0, 0.0])
+        box_anchors[3] = ti.Vector([x_max, y_max, 0.0])
 
-    box_anchors[4] = ti.Vector([0.0, 0.0, z_max])
-    box_anchors[5] = ti.Vector([0.0, y_max, z_max])
-    box_anchors[6] = ti.Vector([x_max, 0.0, z_max])
-    box_anchors[7] = ti.Vector([x_max, y_max, z_max])
+        box_anchors[4] = ti.Vector([0.0, 0.0, z_max])
+        box_anchors[5] = ti.Vector([0.0, y_max, z_max])
+        box_anchors[6] = ti.Vector([x_max, 0.0, z_max])
+        box_anchors[7] = ti.Vector([x_max, y_max, z_max])
 
     box_lines_indices = ti.field(int, shape=(2 * 12))
 
@@ -80,10 +83,10 @@ if __name__ == "__main__":
     while window.running:
         for i in range(substeps):
             solver.step()
-        container.copy_to_vis_buffer(invisible_objects=invisible_objects)
+        container.copy_to_vis_buffer(invisible_objects=invisible_objects, dim=dim)
         if container.dim == 2:
             canvas.set_background_color(background_color)
-            canvas.circles(container.x_vis_buffer, radius=container.dx, color=particle_color)
+            canvas.circles(container.x_vis_buffer, radius=container.dx / 2  / domain_end[0], color=particle_color)
         elif container.dim == 3:
             scene.set_camera(camera)
 
