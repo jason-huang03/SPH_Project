@@ -186,7 +186,18 @@ class DFSPHSolver(BaseSolver):
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
                 grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 ret.dv -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
-                # TODO: add force to dynamic rigid body from fluid here.
+                
+                if self.container.particle_is_dynamic[p_j]:
+                    object_j = self.container.particle_object_ids[p_j]
+                    center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
+                    force_j = (
+                        grad_p_j * (k_j / den_j) * self.density_0 / self.dt[None] 
+                        * (self.container.particle_rest_volumes[p_i] * self.density_0)
+                    )
+                    torque_j = ti.math.cross(self.container.particle_positions[p_j] - center_of_mass_j, force_j)
+                    self.container.rigid_body_forces[object_j] += force_j
+                    self.container.rigid_body_torques[object_j] += torque_j
+
 
     @ti.kernel
     def compute_density_derivative_error(self) -> float:
@@ -259,7 +270,17 @@ class DFSPHSolver(BaseSolver):
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
                 grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
                 self.container.particle_velocities[p_i] -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
-                # TODO: add force to dynamic rigid body from fluid here.
+                
+                if self.container.particle_is_dynamic[p_j]:
+                    object_j = self.container.particle_object_ids[p_j]
+                    center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
+                    force_j = (
+                        grad_p_j * (k_j / den_j) * self.density_0 / self.dt[None]
+                        * (self.container.particle_rest_volumes[p_i] * self.density_0)
+                    )
+                    torque_j = ti.math.cross(self.container.particle_positions[p_j] - center_of_mass_j, force_j)
+                    self.container.rigid_body_forces[object_j] += force_j
+                    self.container.rigid_body_torques[object_j] += torque_j
 
     @ti.kernel
     def compute_density_error(self) -> float:
@@ -294,12 +315,14 @@ class DFSPHSolver(BaseSolver):
     
 
     def step(self):
-
         self.compute_non_pressure_acceleration()
         self.update_fluid_velocity()
         self.correct_density_error()
 
         self.update_fluid_position()
+
+        self.rigid_solver.step()
+        self.renew_rigid_particle_state()
 
         if self.container.dim == 3:
             self.enforce_boundary_3D(self.container.material_fluid)

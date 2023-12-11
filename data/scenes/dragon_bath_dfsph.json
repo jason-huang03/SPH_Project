@@ -17,14 +17,14 @@
 		{
             "objectId": 0,
 			"geometryFile": "./data/models/Dragon_50k.obj",
-			"translation": [2.7, 0.05, 1.0],
+			"translation": [2.7, 0.13, 1.0],
 			"rotationAxis": [0, 1, 0],
 			"rotationAngle": 0,
 			"scale": [1, 1, 1],
 			"velocity": [0.0, 0.0, 0.0],
 			"density": 1000.0,
 			"color": [255, 255, 255], 
-			"isDynamic": false
+			"isDynamic": true
 		}
 	],
 	"FluidBlocks": [

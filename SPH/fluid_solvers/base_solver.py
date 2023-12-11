@@ -153,7 +153,7 @@ class BaseSolver():
             if self.container.particle_is_dynamic[p_j]:
                 object_j = self.container.particle_object_ids[p_j]
                 center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
-                force_j =  - acc * self.container.particle_rest_volumes[p_j] * self.density_0
+                force_j =  - acc * (self.container.particle_rest_volumes[p_j] * self.density_0)
                 torque_j = ti.math.cross(pos_j - center_of_mass_j, force_j)
                 self.container.rigid_body_forces[object_j] += force_j
                 self.container.rigid_body_torques[object_j] += torque_j
