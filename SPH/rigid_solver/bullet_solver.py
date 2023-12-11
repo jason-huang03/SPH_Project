@@ -13,9 +13,12 @@ from typing import List, Tuple, Dict, Union
 class PyBulletSolver():
     def __init__(self, container: BaseContainer, gravity: Tuple[float, float, float] = (0, -9.8, 0), dt: float = 1e-3):
         self.container = container
+        assert container.dim == 3, "PyBulletSolver only supports 3D simulation currently"
+
         self.cfg = container.cfg
         rigid_bodies = self.cfg.get_rigid_bodies()
-        num_rigid_bodies = len(rigid_bodies)
+        rigid_blocks = self.cfg.get_rigid_blocks()
+        num_rigid_bodies = len(rigid_bodies) + len(rigid_blocks)
         self.dt = dt
         self.container_idx_to_bullet_idx = {}
         self.bullet_idx_to_container_idx = {}
@@ -34,6 +37,9 @@ class PyBulletSolver():
 
         for rigid_body in rigid_bodies:
             self.init_rigid_body(rigid_body)
+
+        for rigid_block in rigid_blocks:
+            self.init_rigid_block(rigid_block)
 
 
 
@@ -96,6 +102,9 @@ class PyBulletSolver():
         if not is_dynamic:
             p.changeDynamics(bullet_idx, -1, mass=0.0)
         
+    def init_rigid_block(self, rigid_block):
+        # TODO enable adding rigid block
+        raise NotImplementedError
 
     def apply_force(self, container_idx, force: Tuple[float, float, float]):
         # ! here we assume the center of mass is exactly the base position

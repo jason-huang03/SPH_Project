@@ -56,8 +56,8 @@ class WCSPHSolver(BaseSolver):
                 object_j = self.container.particle_object_ids[p_j]
                 center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
                 force_j = (
-                    (self.density_0 * self.container.particle_rest_volumes[p_i])
-                    * (self.density_0 * self.container.particle_rest_volumes[p_j] * self.container.particle_pressures[p_i] / (den_i * den_i) * nabla_ij)
+                    (self.density_0 * self.container.particle_rest_volumes[p_j] * self.container.particle_pressures[p_i] / (den_i * den_i) * nabla_ij)
+                    * (self.density_0 * self.container.particle_rest_volumes[p_i])
                 )
 
                 torque_j = ti.math.cross(pos_i - center_of_mass_j, force_j)

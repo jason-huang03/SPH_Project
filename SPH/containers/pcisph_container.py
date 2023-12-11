@@ -16,4 +16,7 @@ class PCISPHContainer(BaseContainer):
         self.particle_densities_star = ti.field(dtype=float, shape=self.particle_max_num)
         self.particle_densities_change = ti.field(dtype=float, shape=self.particle_max_num)
 
+        self.rigid_body_pressure_forces = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_pressure_torques = ti.Vector.field(self.dim, dtype=float, shape=10)
+
 

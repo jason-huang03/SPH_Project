@@ -11,7 +11,7 @@ class PCISPHSolver(BaseSolver):
         super().__init__(container)
 
         # pcisph related parameters
-        self.max_iterations = 20
+        self.max_iterations = 50
         self.eta = 0.005
 
     @ti.kernel
@@ -90,19 +90,20 @@ class PCISPHSolver(BaseSolver):
 
 
     @ti.kernel
-    def compute_pressure_acceleration(self):
+    def update_pressure_acceleration(self):
+        self.container.rigid_body_pressure_forces.fill(0.0)
+        self.container.rigid_body_pressure_torques.fill(0.0)
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 ret_i = ti.Vector([0.0, 0.0, 0.0])
-                self.container.for_all_neighbors(p_i, self.compute_pressure_acceleration_task, ret_i)
+                self.container.for_all_neighbors(p_i, self.update_pressure_acceleration_task, ret_i)
                 self.container.particle_pressure_accelerations[p_i] = ret_i
 
 
     @ti.func
-    def compute_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
+    def update_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
         pos_i = self.container.particle_positions[p_i]
-        pos_j = self.container.particle_positions[p_j]
-        R = pos_i - pos_j
+        R = pos_i - self.container.particle_positions[p_j]
         nabla_ij = self.kernel_gradient(R)
 
         if self.container.particle_materials[p_j] == self.container.material_fluid:
@@ -123,7 +124,18 @@ class PCISPHSolver(BaseSolver):
                 - self.density_0 * self.container.particle_rest_volumes[p_j] * (pressure_i / (den_i * den_i) + pressure_j / (den_j * den_j)) * nabla_ij
             )
 
-            # TODO: add force to dynamic rigid body from fluid here.
+            if self.container.particle_is_dynamic[p_j]:
+                object_j = self.container.particle_object_ids[p_j]
+                center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
+                force_j = (
+                    self.density_0 * self.container.particle_rest_volumes[p_j] * pressure_j / (den_j * den_j) * nabla_ij
+                    * (self.density_0 * self.container.particle_rest_volumes[p_i])
+                )
+
+                torque_j = ti.math.cross(pos_i - center_of_mass_j, force_j)
+                self.container.rigid_body_pressure_forces[object_j] += force_j
+                self.container.rigid_body_pressure_torques[object_j] += torque_j
+
 
 
 
@@ -190,10 +202,12 @@ class PCISPHSolver(BaseSolver):
         num_itr = 0
         density_average_error = 0.0
 
-        while num_itr < 1 or num_itr < self.max_iterations:
-            self.compute_pressure_acceleration()
+        while num_itr < 2 or num_itr < self.max_iterations:
+            
+            self.update_pressure_acceleration()
             self.compute_density_change()
             self.update_pressure()
+
             density_average_error = self.compute_density_error()
             density_average_error = ti.abs(density_average_error)
 
@@ -222,8 +236,13 @@ class PCISPHSolver(BaseSolver):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
     
-
-
+    @ti.kernel
+    def apply_pressure_force_to_rigid(self):
+        for object_i in range(self.container.rigid_body_num[None]):
+            if self.container.particle_is_dynamic[object_i]:
+                self.container.rigid_body_forces[object_i] += self.container.rigid_body_pressure_forces[object_i]
+                self.container.rigid_body_torques[object_i] += self.container.rigid_body_pressure_torques[object_i]
+            
     def step(self):
         self.container.prepare_neighborhood_search()
         self.init_acceleration()
@@ -236,5 +255,9 @@ class PCISPHSolver(BaseSolver):
 
         self.update_fluid_velocity()
         self.update_fluid_position()
+
+        self.apply_pressure_force_to_rigid()
+        self.rigid_solver.step()
+        self.renew_rigid_particle_state()
 
         self.enforce_boundary_3D(self.container.material_fluid)
