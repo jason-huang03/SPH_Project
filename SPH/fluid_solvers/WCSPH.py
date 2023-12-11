@@ -2,7 +2,6 @@
 # fluid rigid interaction force implemented as paper "Versatile Rigid-Fluid Coupling for Incompressible SPH"
 import taichi as ti
 from ..containers import WCSPHContainer
-from ..rigid_solver import PyBulletSolver
 from .base_solver import BaseSolver
 @ti.data_oriented
 class WCSPHSolver(BaseSolver):
@@ -13,7 +12,6 @@ class WCSPHSolver(BaseSolver):
         self.gamma = 7.0
         self.stiffness = 50000.0
 
-        self.rigid_solver = PyBulletSolver(container, gravity=self.g,  dt=self.dt[None])
 
 
     @ti.kernel
@@ -34,6 +32,7 @@ class WCSPHSolver(BaseSolver):
         pos_j = self.container.particle_positions[p_j]
         den_i = self.container.particle_densities[p_i]
         R = pos_i - pos_j
+        nabla_ij = self.kernel_gradient(R)
 
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             den_j = self.container.particle_densities[p_j]
@@ -41,22 +40,26 @@ class WCSPHSolver(BaseSolver):
             ret += (
                 - self.container.particle_masses[p_j] 
                 * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_j] / (den_j * den_j)) 
-                * self.kernel_gradient(R)
+                * nabla_ij
             )
 
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
             # use fluid particle pressure, density as rigid particle pressure, density
-            den_j = self.container.particle_densities[p_i]
+            den_j = den_i
             acc = (
                 - self.density_0 * self.container.particle_rest_volumes[p_j] 
-                * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * self.kernel_gradient(R)
+                * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * nabla_ij
             )
             ret += acc
 
             if self.container.particle_is_dynamic[p_j]:
                 object_j = self.container.particle_object_ids[p_j]
                 center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
-                force_j = - acc * self.container.particle_rest_volumes[p_j] * self.density_0
+                force_j = (
+                    (self.density_0 * self.container.particle_rest_volumes[p_i])
+                    * (self.density_0 * self.container.particle_rest_volumes[p_j] * self.container.particle_pressures[p_i] / (den_i * den_i) * nabla_ij)
+                )
+
                 torque_j = ti.math.cross(pos_i - center_of_mass_j, force_j)
                 self.container.rigid_body_forces[object_j] += force_j
                 self.container.rigid_body_torques[object_j] += torque_j

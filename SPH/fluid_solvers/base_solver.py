@@ -1,6 +1,7 @@
 import taichi as ti
 import numpy as np
 from ..containers import BaseContainer
+from ..rigid_solver import PyBulletSolver
 
 @ti.data_oriented
 class BaseSolver():
@@ -22,7 +23,7 @@ class BaseSolver():
         self.dt[None] = self.container.cfg.get_cfg("timeStepSize")
 
 
-
+        self.rigid_solver = PyBulletSolver(container, gravity=self.g,  dt=self.dt[None])
 
 
     @ti.func
