@@ -286,4 +286,4 @@ class BaseSolver():
     
 
     def prepare(self):
-        pass
+        self.renew_rigid_particle_state()

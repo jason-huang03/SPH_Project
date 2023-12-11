@@ -81,21 +81,24 @@ class PyBulletSolver():
         create_urdf(mesh_file_path, mass, scale, urdf_file_path)
         translation = np.array(rigid_body["translation"])
 
-        angle = rigid_body["rotationAngle"] / 360 * 2 * math.pi
+        angle = rigid_body["rotationAngle"] / 360 * (2 * math.pi)
         direction = rigid_body["rotationAxis"]
         rotation_euler = np.array([direction[0] * angle, direction[1] * angle, direction[2] * angle])
         rotation_quaternion = p.getQuaternionFromEuler(rotation_euler)
         rotation_matrix = p.getMatrixFromQuaternion(rotation_quaternion)
         rotation_matrix = np.array(rotation_matrix).reshape((3, 3))
+
         bullet_idx = p.loadURDF(urdf_file_path, basePosition=translation, baseOrientation=rotation_quaternion)
 
         self.container_idx_to_bullet_idx[container_idx] = bullet_idx
         self.bullet_idx_to_container_idx[bullet_idx] = container_idx
 
         if is_dynamic:
-            self.container.rigid_body_original_centers_of_mass[container_idx] = translation
+            self.container.rigid_body_original_centers_of_mass[container_idx] = np.array([0.0, 0.0, 0.0], dtype=np.float32)
             self.container.rigid_body_centers_of_mass[container_idx] = translation
             self.container.rigid_body_rotations[container_idx] = rotation_matrix
+            self.container.rigid_body_velocities[container_idx] = velocity
+            self.container.rigid_body_angular_velocities[container_idx] = np.array([0.0, 0.0, 0.0], dtype=np.float32)
             p.resetBaseVelocity(bullet_idx, velocity)
 
 

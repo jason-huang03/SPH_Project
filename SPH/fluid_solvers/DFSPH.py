@@ -335,6 +335,7 @@ class DFSPHSolver(BaseSolver):
         self.correct_divergence_error()
 
     def prepare(self):
+        self.renew_rigid_particle_state()
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_alpha()

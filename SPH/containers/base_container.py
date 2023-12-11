@@ -497,13 +497,13 @@ class BaseContainer:
         obj_id = rigid_body["objectId"]
         mesh = tm.load(rigid_body["geometryFile"])
         mesh.apply_scale(rigid_body["scale"])
-        offset = np.array(rigid_body["translation"])
+        # offset = np.array(rigid_body["translation"])
 
-        angle = rigid_body["rotationAngle"] / 360 * 2 * 3.1415926
-        direction = rigid_body["rotationAxis"]
-        rot_matrix = tm.transformations.rotation_matrix(angle, direction, mesh.vertices.mean(axis=0))
-        mesh.apply_transform(rot_matrix)
-        mesh.vertices += offset
+        # angle = rigid_body["rotationAngle"] / 360 * 2 * 3.1415926
+        # direction = rigid_body["rotationAxis"]
+        # rot_matrix = tm.transformations.rotation_matrix(angle, direction, mesh.vertices.mean(axis=0))
+        # mesh.apply_transform(rot_matrix)
+        # mesh.vertices += offset
         
         # Backup the original mesh for exporting obj
         mesh_backup = mesh.copy()
