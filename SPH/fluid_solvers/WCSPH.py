@@ -1,7 +1,8 @@
 # implementation of paper "Weakly compressible SPH for free surface flows"
+# fluid rigid interaction force implemented as paper "Versatile Rigid-Fluid Coupling for Incompressible SPH"
 import taichi as ti
 from ..containers import WCSPHContainer
-from ..rigid_solver import ShapeMatchingRigidSolver
+from ..rigid_solver import PyBulletSolver
 from .base_solver import BaseSolver
 @ti.data_oriented
 class WCSPHSolver(BaseSolver):
@@ -11,6 +12,8 @@ class WCSPHSolver(BaseSolver):
         # wcsph related parameters
         self.gamma = 7.0
         self.stiffness = 50000.0
+
+        self.rigid_solver = PyBulletSolver(container, gravity=self.g,  dt=self.dt[None])
 
 
     @ti.kernel
@@ -50,7 +53,13 @@ class WCSPHSolver(BaseSolver):
             )
             ret += acc
 
-            # TODO: add force to dynamic rigid body from fluid here.
+            if self.container.particle_is_dynamic[p_j]:
+                object_j = self.container.particle_object_ids[p_j]
+                center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
+                force_j = - acc * self.container.particle_rest_volumes[p_j] * self.density_0
+                torque_j = ti.math.cross(pos_i - center_of_mass_j, force_j)
+                self.container.rigid_body_forces[object_j] += force_j
+                self.container.rigid_body_torques[object_j] += torque_j
 
     @ti.kernel
     def compute_pressure(self):
@@ -63,6 +72,7 @@ class WCSPHSolver(BaseSolver):
 
  
     def step(self):
+        self.init_rigid_body_force_and_torque()
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_non_pressure_acceleration()
@@ -72,6 +82,9 @@ class WCSPHSolver(BaseSolver):
         self.compute_pressure_acceleration()
         self.update_fluid_velocity()
         self.update_fluid_position()
+        
+        self.rigid_solver.step()
+        self.renew_rigid_particle_state()
     
         self.enforce_boundary_3D(self.container.material_fluid)
 

@@ -1,4 +1,5 @@
 # implementation of paper "Divergence-Free Smoothed Particle Hydrodynamics"
+# fluid rigid interaction force implemented as paper "Versatile Rigid-Fluid Coupling for Incompressible SPH"
 import taichi as ti
 import numpy as np
 from ..containers import DFSPHContainer

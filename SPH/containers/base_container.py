@@ -16,10 +16,12 @@ class BaseContainer:
         self.domain_start = np.array([0.0, 0.0, 0.0])
         self.domain_start = np.array(self.cfg.get_cfg("domainStart"))
 
+        assert self.domain_start[1] >= 0.0, "domain start y should be greater than 0"
+
         self.domain_end = np.array([1.0, 1.0, 1.0])
-        self.domian_end = np.array(self.cfg.get_cfg("domainEnd"))
+        self.domain_end = np.array(self.cfg.get_cfg("domainEnd"))
         
-        self.domain_size = self.domian_end - self.domain_start
+        self.domain_size = self.domain_end - self.domain_start
 
         self.dim = len(self.domain_size)
         print(f"Dimension: {self.dim}")
@@ -127,8 +129,11 @@ class BaseContainer:
         self.rigid_body_original_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_masses = ti.field(dtype=float, shape=10)
         self.rigid_body_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_rotations = ti.Matrix.field(self.dim, self.dim, dtype=float, shape=10)
+        self.rigid_body_torques = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_forces = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_velocities = ti.Vector.field(self.dim, dtype=float, shape=10)
+        self.rigid_body_angular_velocities = ti.Vector.field(self.dim, dtype=float, shape=10)
         self.rigid_body_particle_num = ti.field(dtype=int, shape=10)
 
         # Buffer for sort
@@ -222,10 +227,10 @@ class BaseContainer:
 
             if is_dynamic:
                 self.rigid_body_masses[obj_id] = self.compute_rigid_body_mass(obj_id)
-
-                rigid_com = self.compute_rigid_body_center_of_mass(obj_id)
-                self.rigid_body_centers_of_mass[obj_id] = rigid_com
-                self.rigid_body_original_centers_of_mass[obj_id] = rigid_com
+                self.rigid_body_is_dynamic[obj_id] = 1
+                # rigid_com = self.compute_rigid_body_center_of_mass(obj_id)
+                # ! here we assume the center of mass is exactly the base frame center and calculated it in the bullet solver.
+               
 
 
         # Rigid block
@@ -255,6 +260,7 @@ class BaseContainer:
                           color=color,
                           material=0,# 0 indicates solid
                           space=self.particle_spacing) 
+            # TODO: compute center of mass and other information
 
 
 

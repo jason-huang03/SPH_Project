@@ -1,1 +1,2 @@
 from .shape_matching_solver import ShapeMatchingRigidSolver
+from .bullet_solver import PyBulletSolver

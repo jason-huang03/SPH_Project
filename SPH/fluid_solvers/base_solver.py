@@ -94,14 +94,17 @@ class BaseSolver():
 
     @ti.kernel
     def init_acceleration(self):
-        self.container.particle_accelerations
+        self.container.particle_accelerations.fill(0.0)
+
+    @ti.kernel
+    def init_rigid_body_force_and_torque(self):
+        self.container.rigid_body_forces.fill(0.0)
+        self.container.rigid_body_torques.fill(0.0)
 
 
     @ti.kernel
     def compute_non_pressure_acceleration(self):
         for p_i in range(self.container.particle_num[None]):
-            ############## Body force ###############
-            # Add body force
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 a_i = ti.Vector(self.g)
                 self.container.for_all_neighbors(p_i, self.compute_non_pressure_acceleration_task, a_i)
@@ -146,8 +149,14 @@ class BaseSolver():
             acc = - self.density_0 * self.container.particle_rest_volumes[p_j] * PI * nabla_ij
             ret += acc
 
-            # TODO: add force to dynamic rigid body from fluid here.
-  
+            if self.container.particle_is_dynamic[p_j]:
+                object_j = self.container.particle_object_ids[p_j]
+                center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
+                force_j =  - acc * self.container.particle_rest_volumes[p_j] * self.density_0
+                torque_j = ti.math.cross(pos_j - center_of_mass_j, force_j)
+                self.container.rigid_body_forces[object_j] += force_j
+                self.container.rigid_body_torques[object_j] += torque_j
+    
 
 
 
@@ -240,6 +249,21 @@ class BaseSolver():
             self.enforce_boundary_2D(particle_type)
         elif self.container.dim == 3:
             self.enforce_boundary_3D(particle_type)
+
+    @ti.kernel
+    def renew_rigid_particle_state(self):
+        # update rigid particle state from rigid body state updated by the rigid solver
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_rigid and self.container.particle_is_dynamic[p_i]:
+                object_id = self.container.particle_object_ids[p_i]
+                center_of_mass = self.container.rigid_body_centers_of_mass[object_id]
+                rotation = self.container.rigid_body_rotations[object_id]
+                velocity = self.container.rigid_body_velocities[object_id]
+                angular_velocity = self.container.rigid_body_angular_velocities[object_id]
+                q = self.container.rigid_particle_original_positions[p_i] - self.container.rigid_body_original_centers_of_mass[object_id]
+                p = rotation @ q
+                self.container.particle_positions[p_i] = center_of_mass + p
+                self.container.particle_velocities[p_i] = velocity + ti.math.cross(angular_velocity, p)
 
     @ti.kernel
     def update_fluid_velocity(self):
