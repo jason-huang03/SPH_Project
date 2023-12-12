@@ -70,6 +70,18 @@ To visualize the results, you can run the following command to make the images i
 python make_video.py --images_dir ./path/to/images_dir --output_path --video.mp4 --fps 20
 ```
 
+## TODO
+- [ ] IISPH
+- [ ] PBF 3D parameter tuning
+- [ ] check whether rigid-fluid coupling is correct in every algorithm
+- [ ] model boundary for fluid as static rigid body
+- [ ] enable movable rigid blocks
+- [ ] interactable 2D scene
+- [ ] better viscosity modeling
+- [ ] better surface tension modeling
+- [ ] multi-phase fluid
+- [ ] vorticity modeling
+
 ## Acknowledgements
 This project is built upon the following repositories:
 + [Taichi](https://github.com/taichi-dev/taichi)
