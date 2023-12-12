@@ -1,6 +1,6 @@
 # SPH Realization of Fluid Simulation
 
-## Paper Implementations
+## Features
 
 ### ✨ SPH Algorithm
 + Weakly compressible SPH for free surface flows (WCSPH)
@@ -10,6 +10,9 @@
 
 ### ✨ Fluid-Rigid Interaction Force
 + Versatile Rigid-Fluid Coupling for Incompressible SPH
+
+### ✨ Rigid Solver
++ Bullet Physics Engine
 
 ## Installation
 
@@ -60,3 +63,17 @@ For a quick start, try the following command:
 python run_simulation_dfsph.py --scene ./data/scenes/high_fluid_dfsph.json
 python run_simulation_dfspc.py --scene ./data/scenes/dragon_bath_dfspc.json
 ```
+
+To visualize the results, you can run the following command to make the images into a video.
+
+```bash
+python make_video.py --images_dir ./path/to/images_dir --output_path --video.mp4 --fps 20
+```
+
+## Acknowledgements
+This project is built upon the following repositories:
++ [Taichi](https://github.com/taichi-dev/taichi)
++ [Bullet](https://github.com/bulletphysics/bullet3)
++ [SPH Taichi](https://github.com/erizmr/SPH_Taichi)
+
+We thank all contributors of these repositories for their great work and open source spirit.
