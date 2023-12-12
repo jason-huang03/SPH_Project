@@ -3,3 +3,5 @@ trimesh
 scipy
 matplotlib
 imageio[ffmpeg]
+gym==0.23.0
+pybullet
