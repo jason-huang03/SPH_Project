@@ -13,7 +13,7 @@
 		"exponent": 7,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
-		"exportPly": false,
+		"exportPly": true,
 		"exportObj": false
 	},
 	"FluidBlocks": [

@@ -128,8 +128,8 @@ class PyBulletSolver():
 
 
         # apply force and torque
-        for container_id in range(self.container.rigid_body_num[None]):
-            if self.container.particle_is_dynamic[container_id]:
+        for container_id in range(self.container.object_num[None]):
+            if self.container.rigid_body_is_dynamic[container_id] and self.container.object_materials[container_id] == self.container.material_rigid:
                 force_i = self.container.rigid_body_forces[container_id]
                 torque_i = self.container.rigid_body_torques[container_id]
                 self.apply_force(container_id, force_i)
@@ -140,8 +140,8 @@ class PyBulletSolver():
         p.stepSimulation()
 
         # update rigid body states in the container. updating rigid particle state is done in fluid solver.
-        for container_id in range(self.container.rigid_body_num[None]):
-            if self.container.particle_is_dynamic[container_id]:
+        for container_id in range(self.container.object_num[None]):
+            if self.container.rigid_body_is_dynamic[container_id] and self.container.object_materials[container_id] == self.container.material_rigid:
                 state_i = self.get_rigid_body_states(container_id)
                 self.container.rigid_body_centers_of_mass[container_id] = state_i["position"]
                 self.container.rigid_body_rotations[container_id] = state_i["rotation_matrix"]

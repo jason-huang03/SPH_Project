@@ -108,6 +108,7 @@ if __name__ == "__main__":
         if cnt % output_interval == 0:
             if output_ply:
                 obj_id = 0
+                # TODO: not necessarily the first object
                 obj_data = container.dump(obj_id=obj_id)
                 np_pos = obj_data["position"]
                 writer = ti.tools.PLYWriter(num_vertices=container.object_collection[obj_id]["particleNum"])

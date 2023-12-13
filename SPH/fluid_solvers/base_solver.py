@@ -7,6 +7,7 @@ from ..rigid_solver import PyBulletSolver
 class BaseSolver():
     def __init__(self, container: BaseContainer):
         self.container = container
+        self.cfg = container.cfg
         self.g = ti.Vector([0.0, -9.81, 0.0])  # Gravity
         if self.container.dim == 2:
             self.g = ti.Vector([0.0, -9.81])
@@ -252,7 +253,7 @@ class BaseSolver():
             self.enforce_boundary_3D(particle_type)
 
     @ti.kernel
-    def renew_rigid_particle_state(self):
+    def _renew_rigid_particle_state(self):
         # update rigid particle state from rigid body state updated by the rigid solver
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_rigid and self.container.particle_is_dynamic[p_i]:
@@ -265,6 +266,17 @@ class BaseSolver():
                 p = rotation @ q
                 self.container.particle_positions[p_i] = center_of_mass + p
                 self.container.particle_velocities[p_i] = velocity + ti.math.cross(angular_velocity, p)
+
+    def renew_rigid_particle_state(self):
+        self._renew_rigid_particle_state()
+        
+        if self.cfg.get_cfg("exportObj"):
+            for obj_i in range(self.container.object_num[None]):
+                if self.container.rigid_body_is_dynamic[obj_i] and self.container.object_materials[obj_i] == self.container.material_rigid:
+                    center_of_mass = self.container.rigid_body_centers_of_mass[obj_i]
+                    rotation = self.container.rigid_body_rotations[obj_i]
+                    ret = rotation.to_numpy() @ (self.container.object_collection[obj_i]["restPosition"] - self.container.object_collection[obj_i]["restCenterOfMass"]).T
+                    self.container.object_collection[obj_i]["mesh"].vertices = ret.T + center_of_mass.to_numpy()
 
     @ti.kernel
     def update_fluid_velocity(self):

@@ -14,7 +14,7 @@
 ### ✨ Rigid Solver
 + Bullet Physics Engine
 
-## Installation
+## Installation on Linux
 
 ### Python Environment
 ```bash
@@ -25,17 +25,17 @@ conda activate SPH
 pip install -r requirements.txt
 ```
 
-The code is tested on Ubuntu 22.04 with Python 3.9.12, CUDA 12.2 with NVIDIA A100 GPU.
+The code is tested on Ubuntu 22.04, Python 3.9.12, CUDA 12.2 with NVIDIA A100 GPU.
 
 ### Install Vulkan SDK
 You may need Vulkan SDK to run the code. Here we provide a way to install Vulkan SDK on Linux without admin permission. 
 
 ```bash
 wget https://sdk.lunarg.com/sdk/download/latest/linux/vulkan-sdk.tar.gz -O vulkan-sdk.tar.gz
-# seems that you can install in you customized place without admin.
+
 
 sudo mkdir -p /opt/vulkan-sdk
-sudo tar -xvf vulkan-sdk.tar.gz -C /opt/vulkan-sdk
+sudo tar -xvf vulkan-sdk.tar.gz -C /opt/vulkan-sdk # You can extract to your customized place. Change following lines accordingly.
 
 VULKAN_SDK_VERSION=$(ls /opt/vulkan-sdk/ | grep -v "tar.gz")
 
@@ -50,7 +50,7 @@ export VULKAN_SDK=/opt/vulkan-sdk/$VULKAN_SDK_VERSION/x86_64
 export PATH="$PATH:$VULKAN_SDK/bin"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$VULKAN_SDK/lib"
 
-# possibly you need this line
+# possibly you will need this line
 export VK_LAYER_PATH="$VULKAN_SDK/etc/vulkan/explicit_layer.d"
 
 ```
@@ -78,9 +78,7 @@ python make_video.py --images_dir ./path/to/images_dir --output_path --video.mp4
 - [ ] enable movable rigid blocks
 - [ ] interactable 2D scene
 - [ ] better viscosity modeling
-- [ ] better surface tension modeling
-- [ ] multi-phase fluid
-- [ ] vorticity modeling
+- [ ] rendering with blender
 
 ## Acknowledgements
 This project is built upon the following repositories:

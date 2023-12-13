@@ -238,8 +238,8 @@ class PCISPHSolver(BaseSolver):
     
     @ti.kernel
     def apply_pressure_force_to_rigid(self):
-        for object_i in range(self.container.rigid_body_num[None]):
-            if self.container.particle_is_dynamic[object_i]:
+        for object_i in range(self.container.object_num[None]):
+            if self.container.particle_is_dynamic[object_i] and self.container.object_materials[object_i] == self.container.material_rigid:
                 self.container.rigid_body_forces[object_i] += self.container.rigid_body_pressure_forces[object_i]
                 self.container.rigid_body_torques[object_i] += self.container.rigid_body_pressure_torques[object_i]
             

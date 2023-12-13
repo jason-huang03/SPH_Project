@@ -27,7 +27,8 @@ class BaseContainer:
         print(f"Dimension: {self.dim}")
 
         # Material
-        self.material_rigid = 0
+        # 0 indicates the object does not exist
+        self.material_rigid = 2
         self.material_fluid = 1
 
         self.dx = 0.01  # particle radius
@@ -47,9 +48,10 @@ class BaseContainer:
         if self.cfg.get_cfg("particleSpacing"):
             self.particle_spacing = self.cfg.get_cfg("particleSpacing")
 
-        #  ! remember to change back
         self.V0 = 0.8 * self.particle_diameter ** self.dim
         self.particle_num = ti.field(int, shape=())
+
+        self.max_num_object = 10
 
         # Grid related properties
         self.grid_size = self.dh
@@ -66,6 +68,7 @@ class BaseContainer:
         fluid_blocks = self.cfg.get_fluid_blocks()
         fluid_particle_num = 0
         rigid_body_particle_num = 0
+        num_fluid_bodies = len(fluid_blocks)
         for fluid in fluid_blocks:
             particle_num = self.compute_cube_particle_num(fluid["start"], fluid["end"], space=self.particle_spacing)
             fluid["particleNum"] = particle_num
@@ -75,8 +78,6 @@ class BaseContainer:
 
         #### Process Rigid Bodies ####
         rigid_bodies = self.cfg.get_rigid_bodies()
-        num_rigid_bodies = len(rigid_bodies)
-        print(f"Number of rigid bodies: {num_rigid_bodies}")
         for rigid_body in rigid_bodies:
             # TODO: handle differenc spacing
             voxelized_points_np = self.load_rigid_body(rigid_body)
@@ -87,6 +88,8 @@ class BaseContainer:
 
         #### Process Rigid Blocks ####
         rigid_blocks = self.cfg.get_rigid_blocks()
+        num_rigid_bodies = len(rigid_blocks) + len(rigid_bodies)
+        print(f"Number of rigid bodies and rigid blocks: {num_rigid_bodies}")
         for rigid_block in rigid_blocks:
             particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"], space=self.particle_spacing)
             rigid_block["particleNum"] = particle_num
@@ -120,21 +123,25 @@ class BaseContainer:
         self.particle_colors = ti.Vector.field(3, dtype=int, shape=self.particle_max_num)
         self.particle_is_dynamic = ti.field(dtype=int, shape=self.particle_max_num)
 
+        self.object_materials = ti.field(dtype=int, shape=self.max_num_object)
+
         # Rigid body related properties
-        self.rigid_body_num = ti.field(dtype=int, shape=()) # TODO: make it able to grow
-        self.rigid_body_num[None] = num_rigid_bodies
+        # self.rigid_body_num = ti.field(dtype=int, shape=()) # TODO: make it able to grow
+        # self.rigid_body_num[None] = num_rigid_bodies
+        self.object_num = ti.field(dtype=int, shape=())
+        self.object_num[None] = num_fluid_bodies + num_rigid_bodies
 
         self.rigid_particle_original_positions = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
-        self.rigid_body_is_dynamic = ti.field(dtype=int, shape=10)
-        self.rigid_body_original_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_masses = ti.field(dtype=float, shape=10)
-        self.rigid_body_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_rotations = ti.Matrix.field(self.dim, self.dim, dtype=float, shape=10)
-        self.rigid_body_torques = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_forces = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_velocities = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_angular_velocities = ti.Vector.field(self.dim, dtype=float, shape=10)
-        self.rigid_body_particle_num = ti.field(dtype=int, shape=10)
+        self.rigid_body_is_dynamic = ti.field(dtype=int, shape=self.max_num_object)
+        self.rigid_body_original_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=self.max_num_object)
+        self.rigid_body_masses = ti.field(dtype=float, shape=self.max_num_object)
+        self.rigid_body_centers_of_mass = ti.Vector.field(self.dim, dtype=float, shape=self.max_num_object)
+        self.rigid_body_rotations = ti.Matrix.field(self.dim, self.dim, dtype=float, shape=self.max_num_object)
+        self.rigid_body_torques = ti.Vector.field(self.dim, dtype=float, shape=self.max_num_object)
+        self.rigid_body_forces = ti.Vector.field(self.dim, dtype=float, shape=self.max_num_object)
+        self.rigid_body_velocities = ti.Vector.field(self.dim, dtype=float, shape=self.max_num_object)
+        self.rigid_body_angular_velocities = ti.Vector.field(self.dim, dtype=float, shape=self.max_num_object)
+        self.rigid_body_particle_num = ti.field(dtype=int, shape=self.max_num_object)
 
         # Buffer for sort
         self.particle_object_ids_buffer = ti.field(dtype=int, shape=self.particle_max_num)
@@ -149,7 +156,7 @@ class BaseContainer:
         self.is_dynamic_buffer = ti.field(dtype=int, shape=self.particle_max_num)
 
         # Visibility of object
-        self.object_visibility = ti.field(dtype=int, shape=10)
+        self.object_visibility = ti.field(dtype=int, shape=self.max_num_object)
 
         # Grid id for each particle
         self.grid_ids = ti.field(int, shape=self.particle_max_num)
@@ -179,6 +186,8 @@ class BaseContainer:
             else:
                 self.object_visibility[obj_id] = 1
 
+            self.object_materials[obj_id] = self.material_fluid
+
             self.add_cube(object_id=obj_id,
                           lower_corner=start,
                           cube_size=(end-start)*scale,
@@ -186,7 +195,7 @@ class BaseContainer:
                           density=density, 
                           is_dynamic=1, 
                           color=color,
-                          material=1,# 1 indicates fluid
+                          material=self.material_fluid,
                           space=self.particle_spacing) 
 
 
@@ -210,6 +219,8 @@ class BaseContainer:
             else:
                 self.object_visibility[obj_id] = 1
 
+            self.object_materials[obj_id] = self.material_rigid
+
             #TODO: deal with different spacing
             self.add_particles(obj_id,
                                num_particles_obj,
@@ -217,7 +228,7 @@ class BaseContainer:
                                np.stack([velocity for _ in range(num_particles_obj)]), # velocity
                                density * np.ones(num_particles_obj, dtype=np.float32), # density
                                np.zeros(num_particles_obj, dtype=np.float32), # pressure
-                               np.array([0 for _ in range(num_particles_obj)], dtype=np.int32), # material is solid
+                               np.array([self.material_rigid for _ in range(num_particles_obj)], dtype=np.int32), 
                                is_dynamic * np.ones(num_particles_obj, dtype=np.int32), # is_dynamic
                                np.stack([color for _ in range(num_particles_obj)])) # color
         
@@ -250,7 +261,8 @@ class BaseContainer:
             else:
                 self.object_visibility[obj_id] = 1
 
-                
+            self.object_materials[obj_id] = self.material_rigid
+
             self.add_cube(object_id=obj_id,
                           lower_corner=start,
                           cube_size=(end-start)*scale,
@@ -258,7 +270,7 @@ class BaseContainer:
                           density=density, 
                           is_dynamic=is_dynamic,
                           color=color,
-                          material=0,# 0 indicates solid
+                          material=self.material_rigid,
                           space=self.particle_spacing) 
             # TODO: compute center of mass and other information
 
@@ -497,13 +509,6 @@ class BaseContainer:
         obj_id = rigid_body["objectId"]
         mesh = tm.load(rigid_body["geometryFile"])
         mesh.apply_scale(rigid_body["scale"])
-        # offset = np.array(rigid_body["translation"])
-
-        # angle = rigid_body["rotationAngle"] / 360 * 2 * 3.1415926
-        # direction = rigid_body["rotationAxis"]
-        # rot_matrix = tm.transformations.rotation_matrix(angle, direction, mesh.vertices.mean(axis=0))
-        # mesh.apply_transform(rot_matrix)
-        # mesh.vertices += offset
         
         # Backup the original mesh for exporting obj
         mesh_backup = mesh.copy()
@@ -515,7 +520,6 @@ class BaseContainer:
         voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter)
         voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).fill()
         # voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).hollow()
-        # voxelized_mesh.show()
         voxelized_points_np = voxelized_mesh.points
         print(f"rigid body {obj_id} num: {voxelized_points_np.shape[0]}")
 

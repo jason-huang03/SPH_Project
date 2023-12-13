@@ -66,8 +66,8 @@ class ShapeMatchingRigidSolver():
                 object_id = self.container.particle_object_ids[p_i]
                 self.rigid_body_temp_centers_of_mass[object_id] += self.container.V0 * self.container.particle_densities[p_i] * self.rigid_particle_temp_positions[p_i]
 
-        for obj_i in range(self.container.rigid_body_num[None]):
-            if self.container.rigid_body_is_dynamic[obj_i]:
+        for obj_i in range(self.container.object_num[None]):
+            if self.container.rigid_body_is_dynamic[obj_i] and self.container.object_materials[obj_i] == self.container.material_rigid:
                 self.rigid_body_temp_centers_of_mass[obj_i] /= self.container.rigid_body_masses[obj_i]
                
     @ti.kernel
@@ -81,8 +81,8 @@ class ShapeMatchingRigidSolver():
                 p = self.rigid_particle_temp_positions[p_i] - self.rigid_body_temp_centers_of_mass[object_id]
                 self.rigid_body_temp_rotation_matrices[object_id] += self.container.V0 * self.container.particle_densities[p_i] * p.outer_product(q)
 
-        for obj_i in range(self.container.rigid_body_num[None]):
-            if self.container.rigid_body_is_dynamic[obj_i]:
+        for obj_i in range(self.container.object_num[None]):
+            if self.container.rigid_body_is_dynamic[obj_i] and self.container.object_materials[obj_i] == self.container.material_rigid:
                 A_pq = self.rigid_body_temp_rotation_matrices[obj_i]
                 R, S = ti.polar_decompose(A_pq)
                 if all(abs(R) < 1e-6):
