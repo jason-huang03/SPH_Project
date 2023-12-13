@@ -64,23 +64,32 @@ class BaseContainer:
         self.object_id_rigid_body = set()
 
         #========== Compute number of particles ==========#
-        #### Process Fluid Blocks ####
-        fluid_blocks = self.cfg.get_fluid_blocks()
+        #### Process Fluid Bodies from Mesh####
         fluid_particle_num = 0
         rigid_body_particle_num = 0
-        num_fluid_bodies = len(fluid_blocks)
+
+        fluid_bodies = self.cfg.get_fluid_bodies()
+        for fluid_body in fluid_bodies:
+            voxelized_points_np = self.load_fluid_body(fluid_body, pitch=self.particle_spacing)
+            fluid_body["particleNum"] = voxelized_points_np.shape[0]
+            fluid_body["voxelizedPoints"] = voxelized_points_np
+            self.object_collection[fluid_body["objectId"]] = fluid_body
+            fluid_particle_num += voxelized_points_np.shape[0]
+
+        #### Process Fluid Blocks ####
+        fluid_blocks = self.cfg.get_fluid_blocks()
         for fluid in fluid_blocks:
             particle_num = self.compute_cube_particle_num(fluid["start"], fluid["end"], space=self.particle_spacing)
             fluid["particleNum"] = particle_num
             self.object_collection[fluid["objectId"]] = fluid
             fluid_particle_num += particle_num
 
+        num_fluid_object = len(fluid_blocks) + len(fluid_bodies)
 
-        #### Process Rigid Bodies ####
+        #### Process Rigid Bodies from Mesh ####
         rigid_bodies = self.cfg.get_rigid_bodies()
         for rigid_body in rigid_bodies:
-            # TODO: handle differenc spacing
-            voxelized_points_np = self.load_rigid_body(rigid_body)
+            voxelized_points_np = self.load_rigid_body(rigid_body, pitch=self.particle_spacing)
             rigid_body["particleNum"] = voxelized_points_np.shape[0]
             rigid_body["voxelizedPoints"] = voxelized_points_np
             self.object_collection[rigid_body["objectId"]] = rigid_body
@@ -88,14 +97,15 @@ class BaseContainer:
 
         #### Process Rigid Blocks ####
         rigid_blocks = self.cfg.get_rigid_blocks()
-        num_rigid_bodies = len(rigid_blocks) + len(rigid_bodies)
-        print(f"Number of rigid bodies and rigid blocks: {num_rigid_bodies}")
         for rigid_block in rigid_blocks:
             particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"], space=self.particle_spacing)
             rigid_block["particleNum"] = particle_num
             self.object_collection[rigid_block["objectId"]] = rigid_block
             rigid_body_particle_num += particle_num
-        
+
+        num_rigid_object = len(rigid_blocks) + len(rigid_bodies)
+        print(f"Number of rigid bodies and rigid blocks: {num_rigid_object}")
+
         self.fluid_particle_num = fluid_particle_num
         self.rigid_body_particle_num = rigid_body_particle_num
         self.particle_max_num = fluid_particle_num + rigid_body_particle_num # TODO: make it able to add particles
@@ -129,7 +139,7 @@ class BaseContainer:
         # self.rigid_body_num = ti.field(dtype=int, shape=()) # TODO: make it able to grow
         # self.rigid_body_num[None] = num_rigid_bodies
         self.object_num = ti.field(dtype=int, shape=())
-        self.object_num[None] = num_fluid_bodies + num_rigid_bodies
+        self.object_num[None] = num_fluid_object + num_rigid_object
 
         self.rigid_particle_original_positions = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.rigid_body_is_dynamic = ti.field(dtype=int, shape=self.max_num_object)
@@ -197,6 +207,33 @@ class BaseContainer:
                           color=color,
                           material=self.material_fluid,
                           space=self.particle_spacing) 
+
+        # Fluid body
+        for fluid_body in fluid_bodies:
+            obj_id = fluid_body["objectId"]
+            num_particles_obj = fluid_body["particleNum"]
+            voxelized_points_np = fluid_body["voxelizedPoints"]
+            velocity = np.array(fluid_body["velocity"], dtype=np.float32)
+   
+            density = fluid_body["density"]
+            color = np.array(fluid_body["color"], dtype=np.int32)
+
+            if "visible" in fluid_body:
+                self.object_visibility[obj_id] = fluid_body["visible"]
+            else:
+                self.object_visibility[obj_id] = 1
+
+            self.object_materials[obj_id] = self.material_fluid
+
+            self.add_particles(obj_id,
+                                 num_particles_obj,
+                                 np.array(voxelized_points_np, dtype=np.float32), # position
+                                 np.stack([velocity for _ in range(num_particles_obj)]), # velocity
+                                 density * np.ones(num_particles_obj, dtype=np.float32), # density
+                                 np.zeros(num_particles_obj, dtype=np.float32), # pressure
+                                 np.array([self.material_fluid for _ in range(num_particles_obj)], dtype=np.int32), 
+                                 1 * np.ones(num_particles_obj, dtype=np.int32), # dynamic
+                                 np.stack([color for _ in range(num_particles_obj)]))
 
 
         # Rigid body
@@ -505,7 +542,9 @@ class BaseContainer:
         }
     
 
-    def load_rigid_body(self, rigid_body):
+    def load_rigid_body(self, rigid_body, pitch=None):
+        if pitch is None:
+            pitch = self.particle_diameter
         obj_id = rigid_body["objectId"]
         mesh = tm.load(rigid_body["geometryFile"])
         mesh.apply_scale(rigid_body["scale"])
@@ -517,8 +556,39 @@ class BaseContainer:
         rigid_body["restCenterOfMass"] = mesh_backup.vertices.mean(axis=0)
         is_success = tm.repair.fill_holes(mesh)
             # print("Is the mesh successfully repaired? ", is_success)
-        voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter)
-        voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).fill()
+        voxelized_mesh = mesh.voxelized(pitch=pitch)
+        voxelized_mesh = mesh.voxelized(pitch=pitch).fill()
+        # voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).hollow()
+        voxelized_points_np = voxelized_mesh.points
+        print(f"rigid body {obj_id} num: {voxelized_points_np.shape[0]}")
+
+        # voxelized_points_np = tm.sample.sample_surface_even(mesh, 4000)[0]
+        
+        return voxelized_points_np
+
+    def load_fluid_body(self, rigid_body, pitch=None):
+        if pitch is None:
+            pitch = self.particle_diameter
+        obj_id = rigid_body["objectId"]
+        mesh = tm.load(rigid_body["geometryFile"])
+        mesh.apply_scale(rigid_body["scale"])
+        offset = np.array(rigid_body["translation"])
+
+        angle = rigid_body["rotationAngle"] / 360 * 2 * 3.1415926
+        direction = rigid_body["rotationAxis"]
+        rot_matrix = tm.transformations.rotation_matrix(angle, direction, mesh.vertices.mean(axis=0))
+        mesh.apply_transform(rot_matrix)
+        mesh.vertices += offset
+        
+        # Backup the original mesh for exporting obj
+        mesh_backup = mesh.copy()
+        rigid_body["mesh"] = mesh_backup
+        rigid_body["restPosition"] = mesh_backup.vertices
+        rigid_body["restCenterOfMass"] = mesh_backup.vertices.mean(axis=0)
+        is_success = tm.repair.fill_holes(mesh)
+            # print("Is the mesh successfully repaired? ", is_success)
+        voxelized_mesh = mesh.voxelized(pitch=pitch)
+        voxelized_mesh = mesh.voxelized(pitch=pitch).fill()
         # voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).hollow()
         voxelized_points_np = voxelized_mesh.points
         print(f"rigid body {obj_id} num: {voxelized_points_np.shape[0]}")

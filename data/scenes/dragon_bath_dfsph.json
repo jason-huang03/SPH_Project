@@ -25,7 +25,9 @@
 			"density": 1000.0,
 			"color": [255, 255, 255], 
 			"isDynamic": true
-		},
+		}
+	],
+	"FluidBodies": [
 		{
             "objectId": 1,
 			"geometryFile": "./data/models/Dragon_50k.obj",
@@ -35,9 +37,9 @@
 			"scale": [1, 1, 1],
 			"velocity": [0.0, 0.0, 0.0],
 			"density": 1000.0,
-			"color": [255, 255, 255], 
-			"isDynamic": true
+			"color": [50, 100, 200]
 		}
+
 	],
 	"FluidBlocks": [
 		{
