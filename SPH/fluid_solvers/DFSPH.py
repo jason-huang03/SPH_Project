@@ -180,18 +180,18 @@ class DFSPHSolver(BaseSolver):
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
             k_i = ret.k_i
             k_j = k_i
-            k_sum = k_i + k_j
+            # ? how to implement here?
+            k_sum = k_i
             den_i = self.container.particle_densities[p_i]
-            den_j = den_i
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
                 grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
-                ret.dv -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
+                ret.dv -= grad_p_j * (k_i / den_i) * self.density_0
                 
                 if self.container.particle_is_dynamic[p_j]:
                     object_j = self.container.particle_object_ids[p_j]
                     center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
                     force_j = (
-                        grad_p_j * (k_j / den_j) * self.density_0 / self.dt[None] 
+                        grad_p_j * (k_i / den_i) * self.density_0 / self.dt[None] 
                         * (self.container.particle_rest_volumes[p_i] * self.density_0)
                     )
                     torque_j = ti.math.cross(self.container.particle_positions[p_j] - center_of_mass_j, force_j)
@@ -265,17 +265,17 @@ class DFSPHSolver(BaseSolver):
             # Rigid neighbors
             k_j = k_i
             den_i = self.container.particle_densities[p_i]
-            den_j=  den_i
-            k_sum = k_i + k_j
+            # ? how to implement here?
+            k_sum = k_i
             if ti.abs(k_sum) > self.m_eps * self.dt[None]:
                 grad_p_j = self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
-                self.container.particle_velocities[p_i] -= grad_p_j * (k_i / den_i + k_j / den_j) * self.density_0
+                self.container.particle_velocities[p_i] -= grad_p_j * (k_i / den_i) * self.density_0
                 
                 if self.container.particle_is_dynamic[p_j]:
                     object_j = self.container.particle_object_ids[p_j]
                     center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
                     force_j = (
-                        grad_p_j * (k_j / den_j) * self.density_0 / self.dt[None]
+                        grad_p_j * (k_i / den_i) * self.density_0 / self.dt[None]
                         * (self.container.particle_rest_volumes[p_i] * self.density_0)
                     )
                     torque_j = ti.math.cross(self.container.particle_positions[p_j] - center_of_mass_j, force_j)
