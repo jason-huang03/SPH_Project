@@ -104,20 +104,30 @@ class BaseSolver():
         self.container.rigid_body_torques.fill(0.0)
 
 
-    @ti.kernel
     def compute_non_pressure_acceleration(self):
+        self.compute_gravity_acceleration()
+        self.compute_surface_tension_acceleration()
+        self.compute_viscosity_acceleration()
+
+    @ti.kernel
+    def compute_gravity_acceleration(self):
+        # assign g to all fluid particles, not +=
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
-                a_i = ti.Vector(self.g)
-                self.container.for_all_neighbors(p_i, self.compute_non_pressure_acceleration_task, a_i)
-                self.container.particle_accelerations[p_i] = a_i
+                self.container.particle_accelerations[p_i] =  ti.Vector(self.g)
+
+    @ti.kernel
+    def compute_surface_tension_acceleration(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                a_i = ti.Vector([0.0 for _ in range(self.container.dim)])
+                self.container.for_all_neighbors(p_i, self.compute_surface_tension_acceleration_task, a_i)
+                self.container.particle_accelerations[p_i] += a_i
 
 
     @ti.func
-    def compute_non_pressure_acceleration_task(self, p_i, p_j, ret: ti.template()):
+    def compute_surface_tension_acceleration_task(self, p_i, p_j, ret: ti.template()):
         pos_i = self.container.particle_positions[p_i]
-        
-        ############## Surface Tension ###############
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             # Fluid neighbors
             diameter2 = self.container.particle_diameter * self.container.particle_diameter
@@ -127,10 +137,19 @@ class BaseSolver():
             if R2 > diameter2:
                 ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.kernel_W(R.norm())
             else:
-                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.kernel_W(ti.Vector([self.container.particle_diameter, 0.0, 0.0]).norm())
-            
-        
-        ############### Viscosoty Force ###############
+                ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.kernel_W(ti.Vector([self.container.particle_diameter, 0.0, 0.0]).norm())            
+
+    @ti.kernel
+    def compute_viscosity_acceleration(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                a_i = ti.Vector([0.0 for _ in range(self.container.dim)])
+                self.container.for_all_neighbors(p_i, self.compute_viscosity_acceleration_task, a_i)
+                self.container.particle_accelerations[p_i] += a_i
+
+    @ti.func
+    def compute_viscosity_acceleration_task(self, p_i, p_j, ret: ti.template()):
+        pos_i = self.container.particle_positions[p_i]
         d = 2 * (self.container.dim + 2)
         pos_j = self.container.particle_positions[p_j]
         # Compute the viscosity force contribution
@@ -159,8 +178,6 @@ class BaseSolver():
                 self.container.rigid_body_forces[object_j] += force_j
                 self.container.rigid_body_torques[object_j] += torque_j
     
-
-
 
     @ti.kernel
     def compute_density(self):
