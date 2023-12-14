@@ -299,3 +299,5 @@ class BaseSolver():
 
     def prepare(self):
         self.renew_rigid_particle_state()
+        self.container.prepare_neighborhood_search()
+        self.compute_rigid_particle_volume()

@@ -632,7 +632,6 @@ class BaseContainer:
                           space))
         num_new_particles = reduce(lambda x, y: x * y,
                                    [len(n) for n in num_dim])
-        print('particle num ', num_new_particles)
 
         new_positions = np.array(np.meshgrid(*num_dim,
                                              sparse=False,

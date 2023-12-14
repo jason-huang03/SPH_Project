@@ -77,7 +77,6 @@ class WCSPHSolver(BaseSolver):
 
  
     def step(self):
-        self.init_rigid_body_force_and_torque()
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_non_pressure_acceleration()
@@ -94,5 +93,3 @@ class WCSPHSolver(BaseSolver):
         self.enforce_boundary_3D(self.container.material_fluid)
 
 
-    def prepare(self):
-        self.compute_rigid_particle_volume()

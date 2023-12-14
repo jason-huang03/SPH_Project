@@ -20,7 +20,7 @@
 			"geometryFile": "./data/models/Dragon_50k.obj",
 			"translation": [2.7, 0.13, 1.0],
 			"rotationAxis": [0, 1, 0],
-			"rotationAngle": 0,
+			"rotationAngle": 60,
 			"scale": [1, 1, 1],
 			"velocity": [0.0, 0.0, 0.0],
 			"density": 1000.0,
