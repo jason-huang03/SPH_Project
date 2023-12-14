@@ -39,7 +39,7 @@ class DFSPHSolver(BaseSolver):
 
             # Compute pressure stiffness denominator
             factor = 0.0
-            if sum_grad_p_k > 1e-6:
+            if sum_grad_p_k > 1e-5:
                 factor = 1.0 / sum_grad_p_k
             else:
                 factor = 0.0
@@ -57,7 +57,7 @@ class DFSPHSolver(BaseSolver):
         
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
             # Rigid neighbors
-            # we suppose the rigid body is not dynamic, so it cannot have acceleration. So we discard one term in the equation.
+            # we discard the square norm term
             grad_p_j = -self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
             for i in ti.static(range(self.container.dim)):
                 ret[i] += grad_p_j[i]

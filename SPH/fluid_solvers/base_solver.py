@@ -170,9 +170,9 @@ class BaseSolver():
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 self.container.particle_densities[p_i] = self.container.particle_rest_volumes[p_i] * self.kernel_W(0.0)
-                density_i = 0.0
-                self.container.for_all_neighbors(p_i, self.compute_density_task, density_i)
-                self.container.particle_densities[p_i] += density_i
+                ret_i = 0.0
+                self.container.for_all_neighbors(p_i, self.compute_density_task, ret_i)
+                self.container.particle_densities[p_i] += ret_i
                 self.container.particle_densities[p_i] *= self.density_0
 
     @ti.func
