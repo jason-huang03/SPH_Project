@@ -118,17 +118,16 @@ class PCISPHSolver(BaseSolver):
             den_i = self.container.particle_densities[p_i]
             den_j = den_i
             pressure_i = self.container.particle_pressures[p_i]
-            pressure_j = pressure_i
 
             ret += (
-                - self.density_0 * self.container.particle_rest_volumes[p_j] * (pressure_i / (den_i * den_i) + pressure_j / (den_j * den_j)) * nabla_ij
+                - self.density_0 * self.container.particle_rest_volumes[p_j] * (pressure_i / (den_i * den_i)) * nabla_ij
             )
 
             if self.container.particle_is_dynamic[p_j]:
                 object_j = self.container.particle_object_ids[p_j]
                 center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
                 force_j = (
-                    self.density_0 * self.container.particle_rest_volumes[p_j] * pressure_j / (den_j * den_j) * nabla_ij
+                    self.density_0 * self.container.particle_rest_volumes[p_j] * pressure_i / (den_i * den_i) * nabla_ij
                     * (self.density_0 * self.container.particle_rest_volumes[p_i])
                 )
 

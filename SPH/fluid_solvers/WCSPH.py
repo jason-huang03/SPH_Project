@@ -45,7 +45,8 @@ class WCSPHSolver(BaseSolver):
 
         elif self.container.particle_materials[p_j] == self.container.material_rigid:
             # use fluid particle pressure, density as rigid particle pressure, density
-            den_j = den_i
+            # ? whether to use den_i or density_0 here??
+            den_j = self.density_0
             acc = (
                 - self.density_0 * self.container.particle_rest_volumes[p_j] 
                 * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * nabla_ij
@@ -56,7 +57,8 @@ class WCSPHSolver(BaseSolver):
                 object_j = self.container.particle_object_ids[p_j]
                 center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
                 force_j = (
-                    (self.density_0 * self.container.particle_rest_volumes[p_j] * self.container.particle_pressures[p_i] / (den_i * den_i) * nabla_ij)
+                    self.density_0 * self.container.particle_rest_volumes[p_j] 
+                    *(self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * nabla_ij
                     * (self.density_0 * self.container.particle_rest_volumes[p_i])
                 )
 
