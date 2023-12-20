@@ -62,6 +62,7 @@ class BaseContainer:
         # All objects id and its particle num
         self.object_collection = dict()
         self.object_id_rigid_body = set()
+        self.object_id_fluid_body = set()
 
         #========== Compute number of particles ==========#
         #### Process Fluid Bodies from Mesh####
@@ -190,6 +191,7 @@ class BaseContainer:
             velocity = fluid["velocity"]
             density = fluid["density"]
             color = fluid["color"]
+            self.object_id_fluid_body.add(obj_id)
 
             if "visible" in fluid:
                 self.object_visibility[obj_id] = fluid["visible"]
@@ -224,6 +226,7 @@ class BaseContainer:
                 self.object_visibility[obj_id] = 1
 
             self.object_materials[obj_id] = self.material_fluid
+            self.object_id_fluid_body.add(obj_id)
 
             self.add_particles(obj_id,
                                  num_particles_obj,
@@ -553,7 +556,7 @@ class BaseContainer:
         mesh_backup = mesh.copy()
         rigid_body["mesh"] = mesh_backup
         rigid_body["restPosition"] = mesh_backup.vertices
-        rigid_body["restCenterOfMass"] = mesh_backup.vertices.mean(axis=0)
+        rigid_body["restCenterOfMass"] = np.array([0.0, 0.0, 0.0]) # ! if the center of mass is not exactly the base frame center, this will lead to error
         is_success = tm.repair.fill_holes(mesh)
             # print("Is the mesh successfully repaired? ", is_success)
         voxelized_mesh = mesh.voxelized(pitch=pitch)

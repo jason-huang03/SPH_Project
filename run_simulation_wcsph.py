@@ -99,12 +99,12 @@ if __name__ == "__main__":
         
         if cnt % output_interval == 0:
             if output_ply:
-                obj_id = 0
-                obj_data = container.dump(obj_id=obj_id)
-                np_pos = obj_data["position"]
-                writer = ti.tools.PLYWriter(num_vertices=container.object_collection[obj_id]["particleNum"])
-                writer.add_vertex_pos(np_pos[:, 0], np_pos[:, 1], np_pos[:, 2])
-                writer.export_frame_ascii(cnt_ply, series_prefix.format(0))
+                for f_body_id in container.object_id_fluid_body:
+                    obj_data = container.dump(obj_id=f_body_id)
+                    np_pos = obj_data["position"]
+                    writer = ti.tools.PLYWriter(num_vertices=container.object_collection[f_body_id]["particleNum"])
+                    writer.add_vertex_pos(np_pos[:, 0], np_pos[:, 1], np_pos[:, 2])
+                    writer.export_frame_ascii(cnt_ply, series_prefix.format(f_body_id))
             if output_obj:
                 for r_body_id in container.object_id_rigid_body:
                     with open(f"{scene_name}_output/obj_{r_body_id}_{cnt_ply:06}.obj", "w") as f:

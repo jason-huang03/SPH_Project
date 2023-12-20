@@ -10,8 +10,8 @@
 		"timeStepSize": 0.004,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
-		"exportPly": false,
-		"exportObj": false
+		"exportPly": true,
+		"exportObj": true
 	},
 	"RigidBodies": [
 		{
