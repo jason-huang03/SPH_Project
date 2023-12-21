@@ -6,7 +6,7 @@
 		"particleRadius": 0.01,
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
-		"simulationMethod": 4,
+		"simulationMethod": "dfsph",
 		"gravitation": [0.0, -9.81, 0.0],
 		"timeStepSize": 0.003,
 		"stiffness": 50000,

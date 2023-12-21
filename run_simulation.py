@@ -3,10 +3,10 @@ import argparse
 import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
-from SPH.containers import PBFContainer
-from SPH.fluid_solvers import PBFSolver
+from SPH.containers import DFSPHContainer, WCSPHContainer, PCISPHContainer, PBFContainer
+from SPH.fluid_solvers import DFSPHSolver, WCSPHSolver, PCISPHSolver, PBFSolver
 
-ti.init(arch=ti.gpu, device_memory_fraction=0.8)
+ti.init(arch=ti.gpu, device_memory_fraction=0.5)
 
 
 if __name__ == "__main__":
@@ -21,7 +21,11 @@ if __name__ == "__main__":
 
     substeps = config.get_cfg("numberOfStepsPerRenderUpdate")
     output_frames = config.get_cfg("exportFrame")
-    output_interval = max(int(0.048 / config.get_cfg("timeStepSize")), 1)
+    output_interval = max(int(0.016 / config.get_cfg("timeStepSize")), 1)
+    
+    if config.get_cfg("outputInterval"):
+        output_interval = config.get_cfg("outputInterval")
+
     output_ply = config.get_cfg("exportPly")
     output_obj = config.get_cfg("exportObj")
     series_prefix = "{}_output/particle_object_{}.ply".format(scene_name, "{}")
@@ -30,10 +34,26 @@ if __name__ == "__main__":
     if output_ply:
         os.makedirs(f"{scene_name}_output", exist_ok=True)
 
+    simulation_method = config.get_cfg("simulationMethod")
+    if simulation_method == "dfsph":
+        container = DFSPHContainer(config, GGUI=True)
+        solver = DFSPHSolver(container)
+    elif simulation_method == "wcsph":
+        container = WCSPHContainer(config, GGUI=True)
+        solver = WCSPHSolver(container)
+    elif simulation_method == "pcisph":
+        container = PCISPHContainer(config, GGUI=True)
+        solver = PCISPHSolver(container)
+    elif simulation_method == "pbf":
+        container = PBFContainer(config, GGUI=True)
+        solver = PBFSolver(container)
+    else:
+        raise NotImplementedError(f"Simulation method {simulation_method} not implemented")
 
-    container = PBFContainer(config, GGUI=True)
-    solver = PBFSolver(container)
+    print(f"Simulation method: {simulation_method}")
+
     solver.prepare()
+
 
     window = ti.ui.Window('SPH', (1024, 1024), show_window = False, vsync=False)
 
@@ -86,7 +106,7 @@ if __name__ == "__main__":
         container.copy_to_vis_buffer(invisible_objects=invisible_objects, dim=dim)
         if container.dim == 2:
             canvas.set_background_color(background_color)
-            canvas.circles(container.x_vis_buffer, radius=container.dx / 4  / domain_end[0], color=particle_color)
+            canvas.circles(container.x_vis_buffer, radius=container.dx / 80.0, color=particle_color)
         elif container.dim == 3:
             scene.set_camera(camera)
 

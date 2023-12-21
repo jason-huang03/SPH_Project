@@ -9,6 +9,7 @@
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
 		"gravitation": [0.0, -9.81],
+		"simulationMethod": "dfsph",
 		"timeStepSize": 0.005,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,

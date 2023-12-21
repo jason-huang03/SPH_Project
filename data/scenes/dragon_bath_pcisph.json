@@ -6,7 +6,7 @@
 		"particleRadius": 0.01,
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
-		"simulationMethod": 4,
+		"simulationMethod": "pcisph",
 		"gravitation": [0.0, -9.81, 0.0],
 		"timeStepSize": 0.001,
 		"boundaryHandlingMethod": 0,
