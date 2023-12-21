@@ -28,11 +28,8 @@ if __name__ == "__main__":
 
     output_ply = config.get_cfg("exportPly")
     output_obj = config.get_cfg("exportObj")
-    series_prefix = "{}_output/particle_object_{}.ply".format(scene_name, "{}")
-    if output_frames:
-        os.makedirs(f"{scene_name}_output_img", exist_ok=True)
-    if output_ply:
-        os.makedirs(f"{scene_name}_output", exist_ok=True)
+
+    os.makedirs(f"{scene_name}_output", exist_ok=True)
 
     simulation_method = config.get_cfg("simulationMethod")
     if simulation_method == "dfsph":
@@ -118,22 +115,24 @@ if __name__ == "__main__":
     
         if output_frames:
             if cnt % output_interval == 0:
-                window.save_image(f"{scene_name}_output_img/{cnt:06}.png")
+                os.makedirs(f"{scene_name}_output/{cnt:06}", exist_ok=True)
+                window.save_image(f"{scene_name}_output/{cnt:06}/raw_view.png")
         
         if cnt % output_interval == 0:
             if output_ply:
+                os.makedirs(f"{scene_name}_output/{cnt:06}", exist_ok=True)
                 for f_body_id in container.object_id_fluid_body:
                     obj_data = container.dump(obj_id=f_body_id)
                     np_pos = obj_data["position"]
                     writer = ti.tools.PLYWriter(num_vertices=container.object_collection[f_body_id]["particleNum"])
                     writer.add_vertex_pos(np_pos[:, 0], np_pos[:, 1], np_pos[:, 2])
-                    writer.export_frame_ascii(cnt_ply, series_prefix.format(f_body_id))
+                    writer.export_ascii(f"{scene_name}_output/{cnt:06}/particle_object_{f_body_id}.ply")
             if output_obj:
+                os.makedirs(f"{scene_name}_output/{cnt:06}", exist_ok=True)
                 for r_body_id in container.object_id_rigid_body:
-                    with open(f"{scene_name}_output/obj_{r_body_id}_{cnt_ply:06}.obj", "w") as f:
+                    with open(f"{scene_name}_output/{cnt:06}/mesh_object_{r_body_id}.obj", "w") as f:
                         e = container.object_collection[r_body_id]["mesh"].export(file_type='obj')
                         f.write(e)
-            cnt_ply += 1
 
         cnt += 1
         # if cnt > 6000:
