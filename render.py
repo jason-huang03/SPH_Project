@@ -1,64 +1,110 @@
-import bpy
 import os
-from math import pi
-background_color = (0.5, 0.9, 0.5)
-def setup_scene():
-    bpy.context.scene.render.engine = 'CYCLES'
-    bpy.context.scene.cycles.device = 'GPU'  # Or 'CPU' depending on your preference
+import subprocess
+import re
+import multiprocessing as mp
+from tqdm import tqdm
+import argparse
 
-    bpy.context.scene.render.resolution_x = 1920
-    bpy.context.scene.render.resolution_y = 1080
-    bpy.context.scene.render.image_settings.file_format = 'PNG'
-    r = 2 * pi / 360 * 70
-    p = 2 * pi / 360 * -1.89
-    y = 2 * pi / 360 * 51
+def get_visible_gpu_indices():
+    # Read the CUDA_VISIBLE_DEVICES environment variable
+    cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES', None)
 
-    bpy.ops.object.camera_add(location=(7.6, -1.5, 4.2), rotation=(r, p, y))
-    bpy.context.scene.camera = bpy.context.object
+    if cuda_visible_devices is None:
+        # If the environment variable is not set, all GPUs are visible
+        return None
+    elif cuda_visible_devices.strip() == "":
+        # If the environment variable is set to an empty string, no GPUs are visible
+        return []
+    else:
+        # Split the environment variable by comma and convert to integers
+        return [int(gpu.strip()) for gpu in cuda_visible_devices.split(',')]
 
-    bpy.ops.object.light_add(type='SUN', location=(5.6, 3.6, 4.0))
-    bpy.data.objects['Sun'].data.energy = 5
+def get_gpu_count():
+    try:
+        # Get visible GPU indices from the environment variable
+        visible_gpu_indices = get_visible_gpu_indices()
 
-    # Delete default cube (if present)
-    if "Cube" in bpy.data.objects:
-        bpy.data.objects['Cube'].select_set(True)
-        bpy.ops.object.delete()
+        # Run the nvidia-smi command
+        result = subprocess.run(['nvidia-smi', '--query-gpu=gpu_name', '--format=csv,noheader'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-def create_particle_material():
-    mat = bpy.data.materials.new(name="ParticleMaterial")
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs['Roughness'].default_value = 0.2
-    bsdf.inputs['Metallic'].default_value = 0.0
-    bsdf.inputs['Base Color'].default_value = (0.9, 0.4, 1.0, 1)
-    return mat
+        # Decode the output
+        output = result.stdout.decode('utf-8')
 
-# Set the path to your PLY file and the output directory
-ply_file_path = '/home/jason/SPH_Project/high_fluid_dfsph_output/particle_object_0_000000.ply'
-output_directory = 'rendered_images/test.png'
+        # Count the number of lines in the output
+        total_gpus = len(re.findall(r'.+\n', output))
 
-# Setup the scene
-setup_scene()
-bpy.context.scene.world.use_nodes = False  # Disable nodes to set a solid color
-bpy.context.scene.world.color = background_color
-# Create particle material
-particle_material = create_particle_material()
+        if visible_gpu_indices is None:
+            # If no environment variable is set, all GPUs are visible
+            return total_gpus
+        else:
+            # Filter the GPU indices based on the environment variable
+            return len([i for i in visible_gpu_indices if i < total_gpus])
+    except Exception as e:
+        print("An error occurred: ", e)
+        return 0
 
-# Import the PLY file
-bpy.ops.import_mesh.ply(filepath=ply_file_path)
-obj = bpy.context.selected_objects[0]
 
-# Apply the particle material
-obj.data.materials.append(particle_material)
 
-# Scale the object (adjust as needed)
-# obj.scale = (0.02, 0.02, 0.02)  # Scale down the particles
+# define a template bash command that will be run by process.
+# this command will be run in the shell
+command = "blender -b {} --python rendering_script.py -- {} {} {} {} {}" # disable stdout
+num_gpus = get_gpu_count()
+print("Number of Visible GPUs:", num_gpus)
 
-# Set render output path
-bpy.context.scene.render.filepath = os.path.join(output_directory, "rendered_image.png")
+def process_frame(frame_dir, rank, args):
+    os.system(
+        command.format(args.scene_file, args.device_type, rank%num_gpus, frame_dir, os.path.join(frame_dir, args.rendered_image_name), "" if (rank == 0 and not args.quiet) else " > /dev/null 2>&1")
+    ) # disable stdout on all but the first process
 
-# Render the frame
-bpy.ops.render.render(write_still=True)
+def worker(frame_dir, rank, args):
+    try:
+        process_frame(frame_dir, rank, args)
+    except Exception as e:
+        print(f"failed to process {frame_dir}")
+        print(e)
+    return 1 # return 1 to indicate success
 
-# Remove the object to clear memory
-bpy.data.objects.remove(obj, do_unlink=True)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--scene_file', type=str, required=True)
+    parser.add_argument('--rendered_image_name', type=str, default='render.png')
+    parser.add_argument('--input_dir', type=str, required=True)
+    parser.add_argument('--num_workers', type=int, default=8)
+    parser.add_argument('--device_type', type=str, default='OPTIX')
+    parser.add_argument('--quiet', action='store_true')
+
+    args = parser.parse_args()
+    frame_list = os.listdir(args.input_dir)
+    frame_list.sort(key=lambda x: int(x))
+    num_frames = len(frame_list)
+
+    print(f"Processing {num_frames} frames with {args.num_workers} workers")
+    print(f"Using device type: {args.device_type}")
+
+    
+
+
+    # Using a pool of workers to process the images
+    pool = mp.Pool(args.num_workers)
+
+    # Progress bar setup
+    pbar = tqdm(total=len(frame_list))
+
+    # Update progress bar in callback
+    def update_pbar(result):
+        pbar.update(1)
+
+
+    for i, frame in enumerate(frame_list):
+        frame_dir = os.path.join(args.input_dir, frame)
+        rank = i % args.num_workers
+        pool.apply_async(worker, args=(frame_dir, rank, args), callback=update_pbar)
+
+    
+    pool.close()
+    pool.join()
+    pbar.close()
+
+
+
+    pool.join()

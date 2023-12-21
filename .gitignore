@@ -3,3 +3,5 @@ __pycache__
 *output
 video*?.mp4
 video.mp4
+*.blend
+*.blend1
