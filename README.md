@@ -41,7 +41,7 @@ The code is tested on Ubuntu 22.04, Python 3.9.12, CUDA 12.2 with NVIDIA A100 GP
 
 
 
-### Install Vulkan SDK
+### Install Vulkan SDK (Optional)
 
 You may need Vulkan SDK to run the code. Here we provide a way to install Vulkan SDK on Linux without admin permission. 
 
@@ -76,7 +76,7 @@ After that, you can check if you have successfully installed Vulkan SDK by runni
 
 
 
-### Install Splash Surf
+### Install Splash Surf (Optional)
 
 You can refer to the [official document](https://github.com/InteractiveComputerGraphics/splashsurf) of splashsurf for more detail. Here we provide a way to install splashsurf on Linux without admin permission.
 
@@ -90,7 +90,7 @@ cargo install splashsurf
 
 
 
-### Install Blender
+### Install Blender (Optional)
 
 You can refer to the [official website](https://www.blender.org/) of blender for more detail. Here we provide a way to install blender on LInux without admin permission.
 
