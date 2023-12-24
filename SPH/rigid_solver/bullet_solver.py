@@ -38,8 +38,6 @@ class PyBulletSolver():
             self.physicsClient = None
             print("No rigid body in the scene, skip bullet solver initialization.")
 
-        self.insert_rigid_object()
-
     def insert_rigid_object(self):
         for rigid_body in self.rigid_bodies:
             self.init_rigid_body(rigid_body)

@@ -76,7 +76,6 @@ class BaseContainer:
             voxelized_points_np = self.load_fluid_body(fluid_body, pitch=self.particle_spacing)
             fluid_body["particleNum"] = voxelized_points_np.shape[0]
             fluid_body["voxelizedPoints"] = voxelized_points_np
-            self.object_collection[fluid_body["objectId"]] = fluid_body
             fluid_particle_num += voxelized_points_np.shape[0]
 
         #### Process Fluid Blocks ####
@@ -84,7 +83,6 @@ class BaseContainer:
         for fluid in self.fluid_blocks:
             particle_num = self.compute_cube_particle_num(fluid["start"], fluid["end"], space=self.particle_spacing)
             fluid["particleNum"] = particle_num
-            self.object_collection[fluid["objectId"]] = fluid
             fluid_particle_num += particle_num
 
         num_fluid_object = len(self.fluid_blocks) + len(self.fluid_bodies)
@@ -95,16 +93,15 @@ class BaseContainer:
             voxelized_points_np = self.load_rigid_body(rigid_body, pitch=self.particle_spacing)
             rigid_body["particleNum"] = voxelized_points_np.shape[0]
             rigid_body["voxelizedPoints"] = voxelized_points_np
-            self.object_collection[rigid_body["objectId"]] = rigid_body
             rigid_body_particle_num += voxelized_points_np.shape[0]
 
         #### Process Rigid Blocks ####
         self.rigid_blocks = self.cfg.get_rigid_blocks()
         for rigid_block in self.rigid_blocks:
-            particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"], space=self.particle_spacing)
-            rigid_block["particleNum"] = particle_num
-            self.object_collection[rigid_block["objectId"]] = rigid_block
-            rigid_body_particle_num += particle_num
+            raise NotImplementedError
+            # particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"], space=self.particle_spacing)
+            # rigid_block["particleNum"] = particle_num
+            # rigid_body_particle_num += particle_num
 
         num_rigid_object = len(self.rigid_blocks) + len(self.rigid_bodies)
         print(f"Number of rigid bodies and rigid blocks: {num_rigid_object}")
@@ -181,7 +178,6 @@ class BaseContainer:
             self.x_vis_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
             self.color_vis_buffer = ti.Vector.field(3, dtype=float, shape=self.particle_max_num)
 
-        self.insert_object()
 
     def insert_object(self):
     ###### Add particles ######
@@ -209,6 +205,8 @@ class BaseContainer:
                 self.object_visibility[obj_id] = 1
 
             self.object_materials[obj_id] = self.material_fluid
+            self.object_collection[obj_id] = fluid
+            
 
             self.add_cube(object_id=obj_id,
                           lower_corner=start,
@@ -245,6 +243,7 @@ class BaseContainer:
 
             self.object_materials[obj_id] = self.material_fluid
             self.object_id_fluid_body.add(obj_id)
+            self.object_collection[obj_id] = fluid_body
 
             self.add_particles(obj_id,
                                  num_particles_obj,
@@ -285,6 +284,7 @@ class BaseContainer:
                 self.object_visibility[obj_id] = 1
 
             self.object_materials[obj_id] = self.material_rigid
+            self.object_collection[obj_id] = rigid_body
 
             #TODO: deal with different spacing
             self.add_particles(obj_id,
@@ -312,41 +312,42 @@ class BaseContainer:
 
         # Rigid block
         for rigid_block in self.rigid_blocks:
-            obj_id = rigid_block["objectId"]
+            raise NotImplementedError
+            # obj_id = rigid_block["objectId"]
 
-            if obj_id in self.present_object:
-                continue
-            if rigid_block["entryTime"] > self.total_time:
-                continue
+            # if obj_id in self.present_object:
+            #     continue
+            # if rigid_block["entryTime"] > self.total_time:
+            #     continue
 
-            offset = np.array(rigid_block["translation"])
-            start = np.array(rigid_block["start"]) + offset
-            end = np.array(rigid_block["end"]) + offset
-            scale = np.array(rigid_block["scale"])
-            velocity = rigid_block["velocity"]
-            density = rigid_block["density"]
-            color = rigid_block["color"]
-            is_dynamic = rigid_block["isDynamic"]
+            # offset = np.array(rigid_block["translation"])
+            # start = np.array(rigid_block["start"]) + offset
+            # end = np.array(rigid_block["end"]) + offset
+            # scale = np.array(rigid_block["scale"])
+            # velocity = rigid_block["velocity"]
+            # density = rigid_block["density"]
+            # color = rigid_block["color"]
+            # is_dynamic = rigid_block["isDynamic"]
 
-            if "visible" in rigid_block:
-                self.object_visibility[obj_id] = rigid_block["visible"]
-            else:
-                self.object_visibility[obj_id] = 1
+            # if "visible" in rigid_block:
+            #     self.object_visibility[obj_id] = rigid_block["visible"]
+            # else:
+            #     self.object_visibility[obj_id] = 1
 
-            self.object_materials[obj_id] = self.material_rigid
+            # self.object_materials[obj_id] = self.material_rigid
 
-            self.add_cube(object_id=obj_id,
-                          lower_corner=start,
-                          cube_size=(end-start)*scale,
-                          velocity=velocity,
-                          density=density, 
-                          is_dynamic=is_dynamic,
-                          color=color,
-                          material=self.material_rigid,
-                          space=self.particle_spacing) 
-            # TODO: compute center of mass and other information
+            # self.add_cube(object_id=obj_id,
+            #               lower_corner=start,
+            #               cube_size=(end-start)*scale,
+            #               velocity=velocity,
+            #               density=density, 
+            #               is_dynamic=is_dynamic,
+            #               color=color,
+            #               material=self.material_rigid,
+            #               space=self.particle_spacing) 
+            # # TODO: compute center of mass and other information
 
-            self.present_object.append(obj_id)
+            # self.present_object.append(obj_id)
 
 
     @ti.kernel

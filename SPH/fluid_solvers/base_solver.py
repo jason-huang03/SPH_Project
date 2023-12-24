@@ -315,6 +315,8 @@ class BaseSolver():
     
 
     def prepare(self):
+        self.container.insert_object()
+        self.rigid_solver.insert_rigid_object()
         self.renew_rigid_particle_state()
         self.container.prepare_neighborhood_search()
         self.compute_rigid_particle_volume()
