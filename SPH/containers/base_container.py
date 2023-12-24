@@ -469,51 +469,51 @@ class BaseContainer:
     @ti.kernel
     def init_grid(self):
         self.grid_num_particles.fill(0)
-        for I in ti.grouped(self.particle_positions):
-            grid_index = self.get_flatten_grid_index(self.particle_positions[I])
-            self.grid_ids[I] = grid_index
+        for p_i in range(self.particle_num[None]):
+            grid_index = self.get_flatten_grid_index(self.particle_positions[p_i])
+            self.grid_ids[p_i] = grid_index
             ti.atomic_add(self.grid_num_particles[grid_index], 1)
-        for I in ti.grouped(self.grid_num_particles):
-            self.grid_num_particles_temp[I] = self.grid_num_particles[I]
+        for p_i in ti.grouped(self.grid_num_particles):
+            self.grid_num_particles_temp[p_i] = self.grid_num_particles[p_i]
     
     @ti.kernel
     def reorder_particles(self):
         # ! if a property of a particle is not going to be directly recomputed in each iteration, it should be inside this function
         # ! debugging can be started from here
         
-        for i in range(self.particle_max_num):
-            I = self.particle_max_num - 1 - i
+        for i in range(self.particle_num[None]):
+            p_i = self.particle_num[None] - 1 - i
             base_offset = 0
-            if self.grid_ids[I] - 1 >= 0:
-                base_offset = self.grid_num_particles[self.grid_ids[I]-1]
-            self.grid_ids_new[I] = ti.atomic_sub(self.grid_num_particles_temp[self.grid_ids[I]], 1) - 1 + base_offset
+            if self.grid_ids[p_i] - 1 >= 0:
+                base_offset = self.grid_num_particles[self.grid_ids[p_i]-1]
+            self.grid_ids_new[p_i] = ti.atomic_sub(self.grid_num_particles_temp[self.grid_ids[p_i]], 1) - 1 + base_offset
 
-        for I in ti.grouped(self.grid_ids):
-            new_index = self.grid_ids_new[I]
-            self.grid_ids_buffer[new_index] = self.grid_ids[I]
-            self.particle_object_ids_buffer[new_index] = self.particle_object_ids[I]
-            self.rigid_particle_original_positions_buffer[new_index] = self.rigid_particle_original_positions[I]
-            self.particle_positions_buffer[new_index] = self.particle_positions[I]
-            self.particle_velocities_buffer[new_index] = self.particle_velocities[I]
-            self.particle_rest_volumes_buffer[new_index] = self.particle_rest_volumes[I]
-            self.particle_masses_buffer[new_index] = self.particle_masses[I]
-            self.particle_densities_buffer[new_index] = self.particle_densities[I]
-            self.particle_materials_buffer[new_index] = self.particle_materials[I]
-            self.particle_colors_buffer[new_index] = self.particle_colors[I]
-            self.is_dynamic_buffer[new_index] = self.particle_is_dynamic[I]
+        for p_i in range(self.particle_num[None]):
+            new_index = self.grid_ids_new[p_i]
+            self.grid_ids_buffer[new_index] = self.grid_ids[p_i]
+            self.particle_object_ids_buffer[new_index] = self.particle_object_ids[p_i]
+            self.rigid_particle_original_positions_buffer[new_index] = self.rigid_particle_original_positions[p_i]
+            self.particle_positions_buffer[new_index] = self.particle_positions[p_i]
+            self.particle_velocities_buffer[new_index] = self.particle_velocities[p_i]
+            self.particle_rest_volumes_buffer[new_index] = self.particle_rest_volumes[p_i]
+            self.particle_masses_buffer[new_index] = self.particle_masses[p_i]
+            self.particle_densities_buffer[new_index] = self.particle_densities[p_i]
+            self.particle_materials_buffer[new_index] = self.particle_materials[p_i]
+            self.particle_colors_buffer[new_index] = self.particle_colors[p_i]
+            self.is_dynamic_buffer[new_index] = self.particle_is_dynamic[p_i]
 
-        for I in ti.grouped(self.particle_positions):
-            self.grid_ids[I] = self.grid_ids_buffer[I]
-            self.particle_object_ids[I] = self.particle_object_ids_buffer[I]
-            self.rigid_particle_original_positions[I] = self.rigid_particle_original_positions_buffer[I]
-            self.particle_positions[I] = self.particle_positions_buffer[I]
-            self.particle_velocities[I] = self.particle_velocities_buffer[I]
-            self.particle_rest_volumes[I] = self.particle_rest_volumes_buffer[I]
-            self.particle_masses[I] = self.particle_masses_buffer[I]
-            self.particle_densities[I] = self.particle_densities_buffer[I]
-            self.particle_materials[I] = self.particle_materials_buffer[I]
-            self.particle_colors[I] = self.particle_colors_buffer[I]
-            self.particle_is_dynamic[I] = self.is_dynamic_buffer[I]
+        for p_i in range(self.particle_num[None]):
+            self.grid_ids[p_i] = self.grid_ids_buffer[p_i]
+            self.particle_object_ids[p_i] = self.particle_object_ids_buffer[p_i]
+            self.rigid_particle_original_positions[p_i] = self.rigid_particle_original_positions_buffer[p_i]
+            self.particle_positions[p_i] = self.particle_positions_buffer[p_i]
+            self.particle_velocities[p_i] = self.particle_velocities_buffer[p_i]
+            self.particle_rest_volumes[p_i] = self.particle_rest_volumes_buffer[p_i]
+            self.particle_masses[p_i] = self.particle_masses_buffer[p_i]
+            self.particle_densities[p_i] = self.particle_densities_buffer[p_i]
+            self.particle_materials[p_i] = self.particle_materials_buffer[p_i]
+            self.particle_colors[p_i] = self.particle_colors_buffer[p_i]
+            self.particle_is_dynamic[p_i] = self.is_dynamic_buffer[p_i]
 
 
     def prepare_neighborhood_search(self):

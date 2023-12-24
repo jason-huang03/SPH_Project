@@ -257,6 +257,9 @@ class PCISPHSolver(BaseSolver):
 
         self.apply_pressure_force_to_rigid()
         self.rigid_solver.step()
+
+        self.container.insert_object()
+        self.rigid_solver.insert_rigid_object()
         self.renew_rigid_particle_state()
 
         self.enforce_boundary_3D(self.container.material_fluid)

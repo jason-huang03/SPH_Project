@@ -26,7 +26,8 @@
 			"velocity": [0.0, 0.0, 0.0],
 			"density": 1000.0,
 			"color": [100, 100, 50],
-			"isDynamic": false
+			"isDynamic": false,
+			"entryTime": -1.0
 		}
 	],
 

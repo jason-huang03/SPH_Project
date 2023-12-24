@@ -322,6 +322,9 @@ class DFSPHSolver(BaseSolver):
         self.update_fluid_position()
 
         self.rigid_solver.step()
+
+        self.container.insert_object()
+        self.rigid_solver.insert_rigid_object()
         self.renew_rigid_particle_state()
 
         if self.container.dim == 3:
