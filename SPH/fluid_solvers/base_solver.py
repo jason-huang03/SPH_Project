@@ -322,3 +322,4 @@ class BaseSolver():
     def step(self):
         self._step()
         self.container.total_time += self.dt[None]
+        self.rigid_solver.total_time += self.dt[None]

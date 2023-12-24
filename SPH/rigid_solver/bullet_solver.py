@@ -14,12 +14,14 @@ from typing import List, Tuple, Dict, Union
 class PyBulletSolver():
     def __init__(self, container: BaseContainer, gravity: Tuple[float, float, float] = (0, -9.8, 0), dt: float = 1e-3):
         self.container = container
+        self.total_time = 0.0
+        self.present_rigid_object = []
         assert container.dim == 3, "PyBulletSolver only supports 3D simulation currently"
 
         self.cfg = container.cfg
-        rigid_bodies = self.cfg.get_rigid_bodies()
-        rigid_blocks = self.cfg.get_rigid_blocks()
-        num_rigid_bodies = len(rigid_bodies) + len(rigid_blocks)
+        self.rigid_bodies = self.cfg.get_rigid_bodies()
+        self.rigid_blocks = self.cfg.get_rigid_blocks()
+        num_rigid_bodies = len(self.rigid_bodies) + len(self.rigid_blocks)
         self.dt = dt
         self.container_idx_to_bullet_idx = {}
         self.bullet_idx_to_container_idx = {}
@@ -36,12 +38,14 @@ class PyBulletSolver():
             self.physicsClient = None
             print("No rigid body in the scene, skip bullet solver initialization.")
 
-        for rigid_body in rigid_bodies:
+        self.insert_rigid_object()
+
+    def insert_rigid_object(self):
+        for rigid_body in self.rigid_bodies:
             self.init_rigid_body(rigid_body)
 
-        for rigid_block in rigid_blocks:
+        for rigid_block in self.rigid_blocks:
             self.init_rigid_block(rigid_block)
-
 
 
     def create_boundary(self, thickness: float = 0.01):
@@ -68,13 +72,19 @@ class PyBulletSolver():
         p.createMultiBody(baseMass=0, baseCollisionShapeIndex=shape, basePosition=position)
 
     def init_rigid_body(self, rigid_body):
+        container_idx = rigid_body["objectId"]
+
+        if container_idx in self.present_rigid_object:
+            return
+        if rigid_body["entryTime"] > self.total_time:
+            return
+
         is_dynamic = rigid_body["isDynamic"]
         if is_dynamic:
             velocity = np.array(rigid_body["velocity"], dtype=np.float32)
         else:
             velocity = np.array([0.0, 0.0, 0.0], dtype=np.float32)
 
-        container_idx = rigid_body["objectId"]
         mesh_file_path = rigid_body["geometryFile"]
         urdf_file_path = mesh_file_path[:-4] + ".urdf"
         scale = rigid_body["scale"]
@@ -107,6 +117,8 @@ class PyBulletSolver():
 
         if not is_dynamic:
             p.changeDynamics(bullet_idx, -1, mass=0.0)
+
+        self.present_rigid_object.append(container_idx)
         
     def init_rigid_block(self, rigid_block):
         # TODO enable adding rigid block

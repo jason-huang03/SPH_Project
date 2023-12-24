@@ -64,6 +64,7 @@ class BaseContainer:
         self.object_collection = dict()
         self.object_id_rigid_body = set()
         self.object_id_fluid_body = set()
+        self.present_object = []
 
         #========== Compute number of particles ==========#
         #### Process Fluid Bodies from Mesh####
@@ -180,11 +181,19 @@ class BaseContainer:
             self.x_vis_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
             self.color_vis_buffer = ti.Vector.field(3, dtype=float, shape=self.particle_max_num)
 
+        self.insert_object()
 
+    def insert_object(self):
     ###### Add particles ######
         # Fluid block
         for fluid in self.fluid_blocks:
             obj_id = fluid["objectId"]
+
+            if obj_id in self.present_object:
+                continue
+            if fluid["entryTime"] > self.total_time:
+                continue
+
             offset = np.array(fluid["translation"])
             start = np.array(fluid["start"]) + offset
             end = np.array(fluid["end"]) + offset
@@ -209,11 +218,19 @@ class BaseContainer:
                           is_dynamic=1, 
                           color=color,
                           material=self.material_fluid,
-                          space=self.particle_spacing) 
+                          space=self.particle_spacing)
+            
+            self.present_object.append(obj_id)
 
         # Fluid body
         for fluid_body in self.fluid_bodies:
             obj_id = fluid_body["objectId"]
+
+            if obj_id in self.present_object:
+                continue
+            if fluid_body["entryTime"] > self.total_time:
+                continue
+
             num_particles_obj = fluid_body["particleNum"]
             voxelized_points_np = fluid_body["voxelizedPoints"]
             velocity = np.array(fluid_body["velocity"], dtype=np.float32)
@@ -239,10 +256,17 @@ class BaseContainer:
                                  1 * np.ones(num_particles_obj, dtype=np.int32), # dynamic
                                  np.stack([color for _ in range(num_particles_obj)]))
 
+            self.present_object.append(obj_id)
 
         # Rigid body
         for rigid_body in self.rigid_bodies:
             obj_id = rigid_body["objectId"]
+
+            if obj_id in self.present_object:
+                continue
+            if rigid_body["entryTime"] > self.total_time:
+                continue
+
             self.object_id_rigid_body.add(obj_id)
             num_particles_obj = rigid_body["particleNum"]
             self.rigid_body_particle_num[obj_id] = num_particles_obj
@@ -283,11 +307,18 @@ class BaseContainer:
                 # rigid_com = self.compute_rigid_body_center_of_mass(obj_id)
                 # ! here we assume the center of mass is exactly the base frame center and calculated it in the bullet solver.
                
+            self.present_object.append(obj_id)
 
 
         # Rigid block
         for rigid_block in self.rigid_blocks:
             obj_id = rigid_block["objectId"]
+
+            if obj_id in self.present_object:
+                continue
+            if rigid_block["entryTime"] > self.total_time:
+                continue
+
             offset = np.array(rigid_block["translation"])
             start = np.array(rigid_block["start"]) + offset
             end = np.array(rigid_block["end"]) + offset
@@ -315,6 +346,7 @@ class BaseContainer:
                           space=self.particle_spacing) 
             # TODO: compute center of mass and other information
 
+            self.present_object.append(obj_id)
 
 
     @ti.kernel
