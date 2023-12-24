@@ -12,6 +12,7 @@ class BaseContainer:
     def __init__(self, config: SimConfig, GGUI=False):
         self.cfg = config
         self.GGUI = GGUI
+        self.total_time = 0.0
 
         self.domain_start = np.array([0.0, 0.0, 0.0])
         self.domain_start = np.array(self.cfg.get_cfg("domainStart"))
@@ -69,8 +70,8 @@ class BaseContainer:
         fluid_particle_num = 0
         rigid_body_particle_num = 0
 
-        fluid_bodies = self.cfg.get_fluid_bodies()
-        for fluid_body in fluid_bodies:
+        self.fluid_bodies = self.cfg.get_fluid_bodies()
+        for fluid_body in self.fluid_bodies:
             voxelized_points_np = self.load_fluid_body(fluid_body, pitch=self.particle_spacing)
             fluid_body["particleNum"] = voxelized_points_np.shape[0]
             fluid_body["voxelizedPoints"] = voxelized_points_np
@@ -78,18 +79,18 @@ class BaseContainer:
             fluid_particle_num += voxelized_points_np.shape[0]
 
         #### Process Fluid Blocks ####
-        fluid_blocks = self.cfg.get_fluid_blocks()
-        for fluid in fluid_blocks:
+        self.fluid_blocks = self.cfg.get_fluid_blocks()
+        for fluid in self.fluid_blocks:
             particle_num = self.compute_cube_particle_num(fluid["start"], fluid["end"], space=self.particle_spacing)
             fluid["particleNum"] = particle_num
             self.object_collection[fluid["objectId"]] = fluid
             fluid_particle_num += particle_num
 
-        num_fluid_object = len(fluid_blocks) + len(fluid_bodies)
+        num_fluid_object = len(self.fluid_blocks) + len(self.fluid_bodies)
 
         #### Process Rigid Bodies from Mesh ####
-        rigid_bodies = self.cfg.get_rigid_bodies()
-        for rigid_body in rigid_bodies:
+        self.rigid_bodies = self.cfg.get_rigid_bodies()
+        for rigid_body in self.rigid_bodies:
             voxelized_points_np = self.load_rigid_body(rigid_body, pitch=self.particle_spacing)
             rigid_body["particleNum"] = voxelized_points_np.shape[0]
             rigid_body["voxelizedPoints"] = voxelized_points_np
@@ -97,14 +98,14 @@ class BaseContainer:
             rigid_body_particle_num += voxelized_points_np.shape[0]
 
         #### Process Rigid Blocks ####
-        rigid_blocks = self.cfg.get_rigid_blocks()
-        for rigid_block in rigid_blocks:
+        self.rigid_blocks = self.cfg.get_rigid_blocks()
+        for rigid_block in self.rigid_blocks:
             particle_num = self.compute_cube_particle_num(rigid_block["start"], rigid_block["end"], space=self.particle_spacing)
             rigid_block["particleNum"] = particle_num
             self.object_collection[rigid_block["objectId"]] = rigid_block
             rigid_body_particle_num += particle_num
 
-        num_rigid_object = len(rigid_blocks) + len(rigid_bodies)
+        num_rigid_object = len(self.rigid_blocks) + len(self.rigid_bodies)
         print(f"Number of rigid bodies and rigid blocks: {num_rigid_object}")
 
         self.fluid_particle_num = fluid_particle_num
@@ -182,7 +183,7 @@ class BaseContainer:
 
     ###### Add particles ######
         # Fluid block
-        for fluid in fluid_blocks:
+        for fluid in self.fluid_blocks:
             obj_id = fluid["objectId"]
             offset = np.array(fluid["translation"])
             start = np.array(fluid["start"]) + offset
@@ -211,7 +212,7 @@ class BaseContainer:
                           space=self.particle_spacing) 
 
         # Fluid body
-        for fluid_body in fluid_bodies:
+        for fluid_body in self.fluid_bodies:
             obj_id = fluid_body["objectId"]
             num_particles_obj = fluid_body["particleNum"]
             voxelized_points_np = fluid_body["voxelizedPoints"]
@@ -240,7 +241,7 @@ class BaseContainer:
 
 
         # Rigid body
-        for rigid_body in rigid_bodies:
+        for rigid_body in self.rigid_bodies:
             obj_id = rigid_body["objectId"]
             self.object_id_rigid_body.add(obj_id)
             num_particles_obj = rigid_body["particleNum"]
@@ -285,7 +286,7 @@ class BaseContainer:
 
 
         # Rigid block
-        for rigid_block in rigid_blocks:
+        for rigid_block in self.rigid_blocks:
             obj_id = rigid_block["objectId"]
             offset = np.array(rigid_block["translation"])
             start = np.array(rigid_block["start"]) + offset

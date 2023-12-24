@@ -314,7 +314,7 @@ class DFSPHSolver(BaseSolver):
                 self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
     
 
-    def step(self):
+    def _step(self):
         self.compute_non_pressure_acceleration()
         self.update_fluid_velocity()
         self.correct_density_error()

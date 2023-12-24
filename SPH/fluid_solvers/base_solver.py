@@ -318,3 +318,7 @@ class BaseSolver():
         self.renew_rigid_particle_state()
         self.container.prepare_neighborhood_search()
         self.compute_rigid_particle_volume()
+
+    def step(self):
+        self._step()
+        self.container.total_time += self.dt[None]

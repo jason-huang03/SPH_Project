@@ -242,7 +242,7 @@ class PCISPHSolver(BaseSolver):
                 self.container.rigid_body_forces[object_i] += self.container.rigid_body_pressure_forces[object_i]
                 self.container.rigid_body_torques[object_i] += self.container.rigid_body_pressure_torques[object_i]
             
-    def step(self):
+    def _step(self):
         self.container.prepare_neighborhood_search()
         self.init_acceleration()
         self.compute_pcisph_k()

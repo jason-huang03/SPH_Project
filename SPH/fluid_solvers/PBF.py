@@ -142,7 +142,7 @@ class PBFSolver(BaseSolver):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 self.container.particle_old_positions[p_i] = self.container.particle_positions[p_i]
 
-    def step(self):
+    def _step(self):
         self.container.prepare_neighborhood_search()
         self.compute_non_pressure_acceleration()
         self.update_fluid_velocity()

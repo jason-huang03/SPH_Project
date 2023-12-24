@@ -76,7 +76,7 @@ class WCSPHSolver(BaseSolver):
                 self.container.particle_pressures[p_i] = self.stiffness * (ti.pow(rho_i / self.density_0, self.gamma) - 1.0)
 
  
-    def step(self):
+    def _step(self):
         self.container.prepare_neighborhood_search()
         self.compute_density()
         self.compute_non_pressure_acceleration()
