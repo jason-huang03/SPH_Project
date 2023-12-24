@@ -1,5 +1,6 @@
 taichi>=1.6.0
 trimesh
+networkx
 scipy
 matplotlib
 imageio[ffmpeg]

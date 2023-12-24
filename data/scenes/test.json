@@ -1,0 +1,56 @@
+{
+	"Configuration": 
+	{
+        "domainStart": [0.0, 0.0, 0.0],
+        "domainEnd": [3.5, 3.0, 2.0],
+		"particleRadius": 0.01,
+		"numberOfStepsPerRenderUpdate": 1,
+		"density0": 1000, 
+		"gravitation": [0.0, -9.81, 0.0],
+		"simulationMethod": "dfsph",
+		"timeStepSize": 0.004,
+		"boundaryHandlingMethod": 0,
+		"exportFrame": true,
+		"exportPly": false,
+		"exportObj": false
+	},
+	"RigidBodies": [
+		{
+            "objectId": 0,
+			"geometryFile": "./data/models/cube.obj",
+			"translation": [2.2, 1.7, 1.0],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [1, 1, 1],
+			"velocity": [0.0, 0.0, 0.0],
+			"density": 1000.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true
+		},
+		{
+            "objectId": 1,
+			"geometryFile": "./data/models/icosphere.obj",
+			"translation": [2.8, 0.13, 1.0],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [1, 1, 1],
+			"velocity": [0.0, 0.0, 0.0],
+			"density": 1000.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true
+		}
+	],
+
+	"FluidBlocks": [
+		{
+            "objectId": 2,
+			"start": [0.1, 0.1, 0.5],
+			"end": [1.2, 1.5, 1.6],
+			"translation": [0.2, 0.0, 0.2],
+			"scale": [1, 1, 1],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 1000.0,
+			"color": [50, 100, 200]
+		}
+	]
+}

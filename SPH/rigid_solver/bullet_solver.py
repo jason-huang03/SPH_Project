@@ -2,6 +2,7 @@ import pybullet as p
 import pybullet_data
 import taichi as ti
 import numpy as np
+import os
 import math
 from ..containers import BaseContainer
 from ..utils import create_urdf
@@ -89,6 +90,8 @@ class PyBulletSolver():
         rotation_matrix = np.array(rotation_matrix).reshape((3, 3))
 
         bullet_idx = p.loadURDF(urdf_file_path, basePosition=translation, baseOrientation=rotation_quaternion)
+        # delete the urdf file after loading it
+        os.remove(urdf_file_path)
 
         self.container_idx_to_bullet_idx[container_idx] = bullet_idx
         self.bullet_idx_to_container_idx[bullet_idx] = container_idx
