@@ -6,9 +6,9 @@ from SPH.utils import SimConfig
 from SPH.containers import DFSPHContainer, WCSPHContainer, PCISPHContainer, PBFContainer
 from SPH.fluid_solvers import DFSPHSolver, WCSPHSolver, PCISPHSolver, PBFSolver
 
-ti.init(arch=ti.gpu, device_memory_fraction=0.5)
+ti.init(arch=ti.gpu, device_memory_fraction=0.8)
 
-
+#! due to code legacy, please use domain_start = [0, 0, 0]
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--scene_file',
@@ -41,6 +41,8 @@ if __name__ == "__main__":
     elif simulation_method == "pcisph":
         container = PCISPHContainer(config, GGUI=True)
         solver = PCISPHSolver(container)
+    elif simulation_method == "iisph":
+        raise NotImplementedError("IISPH is not implemented yet")
     elif simulation_method == "pbf":
         container = PBFContainer(config, GGUI=True)
         solver = PBFSolver(container)

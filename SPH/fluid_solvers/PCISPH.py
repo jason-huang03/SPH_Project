@@ -262,4 +262,4 @@ class PCISPHSolver(BaseSolver):
         self.rigid_solver.insert_rigid_object()
         self.renew_rigid_particle_state()
 
-        self.enforce_boundary_3D(self.container.material_fluid)
+        self.enforce_domain_boundary_3D(self.container.material_fluid)

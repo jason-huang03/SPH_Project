@@ -1,5 +1,6 @@
 import taichi as ti
 import numpy as np
+from taichi.linalg import LinearOperator, taichi_cg_solver
 from ..containers import BaseContainer
 from ..rigid_solver import PyBulletSolver
 
@@ -14,7 +15,8 @@ class BaseSolver():
         
         self.g = np.array(self.container.cfg.get_cfg("gravitation"))
 
-        self.viscosity = 0.01
+        self.viscosity = 100000.0
+        self.viscosity = self.container.cfg.get_cfg("viscosity")
         self.density_0 = 1000.0  
         self.density_0 = self.container.cfg.get_cfg("density0")
         self.surface_tension = 0.01
@@ -25,6 +27,17 @@ class BaseSolver():
 
 
         self.rigid_solver = PyBulletSolver(container, gravity=self.g,  dt=self.dt[None])
+
+        self.cg_p = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+        self.Ap = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+        self.cg_x = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+        self.b = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+        self.cg_alpha = ti.field(dtype=ti.f32, shape=())
+        self.cg_beta = ti.field(dtype=ti.f32, shape=())
+        self.cg_r = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+        self.cg_error = ti.field(dtype=ti.f32, shape=())
+        self.diagnol_ii_inv = ti.Matrix.field(self.container.dim, self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+
 
 
     @ti.func
@@ -177,7 +190,158 @@ class BaseSolver():
                 torque_j = ti.math.cross(pos_j - center_of_mass_j, force_j)
                 self.container.rigid_body_forces[object_j] += force_j
                 self.container.rigid_body_torques[object_j] += torque_j
+
     
+    @ti.kernel
+    def prepare_conjugate_gradient_solver1(self):
+        self.cg_r.fill(0.0)
+        self.cg_p.fill(0.0)
+        self.b.fill(0.0)
+        self.Ap.fill(0.0)
+
+        # initial guess for x. We use v^{df} + v(t) - v^{df}(t - dt) as initial guess. we assume v(t) - v^{df}(t - dt) is already in x
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.cg_x[p_i] += self.container.particle_velocities[p_i]
+
+        # prepare b
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                ret = ti.Matrix.zero(ti.f32, self.container.dim, self.container.dim)
+                self.container.for_all_neighbors(p_i, self.compute_A_ii_task, ret)
+                # preconditioner
+                diag_ii = ti.Matrix.identity(ti.f32, self.container.dim) - ret * self.dt[None] / self.container.particle_densities[p_i]
+                self.diagnol_ii_inv[p_i] = ti.math.inverse(diag_ii)
+
+                # we leave b to be v^{df}
+                self.b[p_i] = self.container.particle_velocities[p_i]
+
+                # copy x into p to calculate Ax
+                self.cg_p[p_i] = self.cg_x[p_i]
+
+    @ti.kernel
+    def prepare_conjugate_gradient_solver2(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.cg_r[p_i] = self.diagnol_ii_inv[p_i]@self.b[p_i] - self.Ap[p_i]
+                self.cg_p[p_i] = self.cg_r[p_i]
+
+                
+    @ti.func
+    def compute_A_ii_task(self, p_i, p_j, ret: ti.template()):
+        # there is left densities[p_i] to be divided
+        if self.container.particle_materials[p_j] == self.container.material_fluid:
+            A_ij = self.compute_A_ij(p_i, p_j)
+            ret -= A_ij
+
+    @ti.func
+    def compute_A_ij(self, p_i, p_j):
+        # we do not divide densities[p_i] here.
+        R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
+        nabla_ij = self.kernel_gradient(R)
+        m_ij = (self.container.particle_masses[p_i] * self.container.particle_masses[p_j]) / 2
+        A_ij = (- 2 * (self.container.dim + 2) * self.viscosity * m_ij
+                 / self.container.particle_densities[p_j]
+                 / (R.norm_sqr() + 0.01 * self.container.dh**2) 
+                 * nabla_ij.outer_product(R) 
+        )
+        return A_ij
+
+    @ti.kernel
+    def compute_Ap(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                ret = ti.Vector([0.0 for _ in range(self.container.dim)])
+                self.container.for_all_neighbors(p_i, self.compute_Ap_task, ret)
+                ret *= self.dt[None]
+                ret /= self.container.particle_densities[p_i]
+                ret += self.cg_p[p_i]
+                self.Ap[p_i] = ret    
+    
+    @ti.func
+    def compute_Ap_task(self, p_i, p_j, ret: ti.template()):
+        if self.container.particle_materials[p_j] == self.container.material_fluid:
+            A_ij = self.compute_A_ij(p_i, p_j)
+            # preconditioner
+            ret += self.diagnol_ii_inv[p_i] @ (-A_ij) @ self.cg_p[p_j]
+
+    @ti.kernel
+    def compute_cg_alpha(self):
+        self.cg_alpha[None] = 0.0
+        numerator = 0.0
+        denominator = 0.0
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                numerator += self.cg_r[p_i].norm_sqr()
+                denominator += self.cg_p[p_i].dot(self.Ap[p_i])
+
+        #! note for divide by zero
+        self.cg_alpha[None] = numerator / denominator
+    
+    @ti.kernel
+    def update_cg_x(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.cg_x[p_i] += self.cg_alpha[None] * self.cg_p[p_i]
+    
+    @ti.kernel
+    def update_cg_r_and_beta(self):
+        self.cg_error[None] = 0.0
+        numerator = 0.0
+        denominator = 0.0
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                new_r_i = self.cg_r[p_i] - self.cg_alpha[None] * self.Ap[p_i]
+                numerator += new_r_i.norm_sqr()
+                denominator += self.cg_r[p_i].norm_sqr()
+                self.cg_error[None] += new_r_i.norm_sqr()
+                self.cg_r[p_i] = new_r_i
+        
+        # ! note for divide by zero
+        self.cg_error[None] = ti.sqrt(self.cg_error[None])
+        self.cg_beta[None] = numerator / denominator
+
+    @ti.kernel
+    def update_p(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.cg_p[p_i] =  self.cg_r[p_i] + self.cg_beta[None] * self.cg_p[p_i]
+
+    @ti.kernel
+    def prepare_guess(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.cg_x[p_i] -= self.b[p_i]
+
+    def conjugate_gradient_loop(self):
+        tol = 1000.0
+        num_itr = 0
+
+        while tol > 1e-10:
+            self.compute_Ap()
+            self.compute_cg_alpha()
+            self.update_cg_x()
+            self.update_cg_r_and_beta()
+            self.update_p()
+            tol = self.cg_error[None]
+            num_itr += 1
+
+
+        print("CG iteration: ", num_itr, " error: ", tol)
+            
+    @ti.kernel
+    def viscosity_update_velocity(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                self.container.particle_velocities[p_i] = self.cg_x[p_i]
+
+    def implicit_viscosity_solve(self):
+        self.prepare_conjugate_gradient_solver1()
+        self.compute_Ap()
+        self.prepare_conjugate_gradient_solver2()
+        self.conjugate_gradient_loop()
+        self.viscosity_update_velocity()
+        self.prepare_guess()
 
     @ti.kernel
     def compute_density(self):
@@ -210,7 +374,7 @@ class BaseSolver():
             1.0 + c_f) * self.container.particle_velocities[p_i].dot(vec) * vec
         
     @ti.kernel
-    def enforce_boundary_2D(self, particle_type:int):
+    def enforce_domain_boundary_2D(self, particle_type:int):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == particle_type and self.container.particle_is_dynamic[p_i]: 
                 pos = self.container.particle_positions[p_i]
@@ -232,7 +396,7 @@ class BaseSolver():
                     self.simulate_collisions(
                             p_i, collision_normal / collision_normal_length)
     @ti.kernel
-    def enforce_boundary_3D(self, particle_type:int):
+    def enforce_domain_boundary_3D(self, particle_type:int):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == particle_type and self.container.particle_is_dynamic[p_i]:
                 pos = self.container.particle_positions[p_i]
@@ -263,11 +427,11 @@ class BaseSolver():
                     self.simulate_collisions(
                             p_i, collision_normal / collision_normal_length)
 
-    def enforce_boundary(self, particle_type:int):
+    def enforce_domain_boundary(self, particle_type:int):
         if self.container.dim == 2:
-            self.enforce_boundary_2D(particle_type)
+            self.enforce_domain_boundary_2D(particle_type)
         elif self.container.dim == 3:
-            self.enforce_boundary_3D(particle_type)
+            self.enforce_domain_boundary_3D(particle_type)
 
     @ti.kernel
     def _renew_rigid_particle_state(self):

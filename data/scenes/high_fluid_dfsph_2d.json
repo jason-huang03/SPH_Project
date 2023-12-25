@@ -11,6 +11,7 @@
 		"gravitation": [0.0, -9.81],
 		"simulationMethod": "dfsph",
 		"timeStepSize": 0.005,
+		"viscosity": 0.01,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
 		"outputInterval": 10,

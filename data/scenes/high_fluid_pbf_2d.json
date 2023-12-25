@@ -9,6 +9,7 @@
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
 		"simulationMethod": "pbf",
+		"viscosity": 0.0,
 		"gravitation": [0.0, -9.81],
 		"timeStepSize": 0.05,
 		"boundaryHandlingMethod": 0,

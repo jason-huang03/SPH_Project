@@ -9,6 +9,7 @@
 		"simulationMethod": "wcsph",
 		"gravitation": [0.0, -9.81, 0.0],
 		"timeStepSize": 0.0004,
+		"viscosity": 0.01,
 		"stiffness": 50000,
 		"exponent": 7,
 		"boundaryHandlingMethod": 0,

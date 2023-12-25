@@ -149,11 +149,11 @@ class PBFSolver(BaseSolver):
         self.save_old_position()
         self.update_fluid_position()
 
-        self.enforce_boundary(self.container.material_fluid)
+        self.enforce_domain_boundary(self.container.material_fluid)
 
         self.refine()
 
-        self.enforce_boundary(self.container.material_fluid)
+        self.enforce_domain_boundary(self.container.material_fluid)
 
         self.recompute_fluid_velocity()
 
