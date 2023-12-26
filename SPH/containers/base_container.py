@@ -593,6 +593,7 @@ class BaseContainer:
         rigid_body["restCenterOfMass"] = np.array([0.0, 0.0, 0.0]) # ! if the center of mass is not exactly the base frame center, this will lead to error
         is_success = tm.repair.fill_holes(mesh)
             # print("Is the mesh successfully repaired? ", is_success)
+
         voxelized_mesh = mesh.voxelized(pitch=pitch)
         voxelized_mesh = mesh.voxelized(pitch=pitch).fill()
         # voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).hollow()

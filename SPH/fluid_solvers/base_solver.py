@@ -1,6 +1,5 @@
 import taichi as ti
 import numpy as np
-from taichi.linalg import LinearOperator, taichi_cg_solver
 from ..containers import BaseContainer
 from ..rigid_solver import PyBulletSolver
 

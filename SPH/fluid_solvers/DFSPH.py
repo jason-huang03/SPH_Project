@@ -312,10 +312,6 @@ class DFSPHSolver(BaseSolver):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
-    
-    def compute_non_pressure_acceleration(self):
-        self.compute_gravity_acceleration()
-        self.compute_surface_tension_acceleration()
 
     def _step(self):
         self.compute_non_pressure_acceleration()
@@ -339,8 +335,6 @@ class DFSPHSolver(BaseSolver):
         self.compute_density()
         self.compute_alpha()
         self.correct_divergence_error()
-
-        self.implicit_viscosity_solve()
 
     def prepare(self):
         super().prepare()
