@@ -55,7 +55,6 @@ class PyBulletSolver():
         domain_size = self.container.domain_size
         domain_center = (domain_start + domain_end) / 2
 
-
     # Creating each wall
         self.create_wall(position=[domain_center[0], domain_start[1] - thickness / 1.9, domain_center[2]], half_extents=[domain_size[0] / 2, thickness / 2, domain_size[2] / 2])
         self.create_wall(position=[domain_center[0], domain_end[1] + thickness / 1.9, domain_center[2]], half_extents=[domain_size[0] / 2, thickness / 2, domain_size[2] / 2])

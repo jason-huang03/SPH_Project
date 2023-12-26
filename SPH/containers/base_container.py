@@ -60,6 +60,9 @@ class BaseContainer:
         print("grid size: ", self.grid_num)
         self.padding = self.grid_size
 
+        self.domain_box_start = [self.domain_start[i] + self.padding for i in range(self.dim)]
+        self.domain_box_size = [self.domain_size[i] - 2 * self.padding for i in range(self.dim)]
+
         # All objects id and its particle num
         self.object_collection = dict()
         self.object_id_rigid_body = set()
@@ -108,7 +111,7 @@ class BaseContainer:
 
         self.fluid_particle_num = fluid_particle_num
         self.rigid_body_particle_num = rigid_body_particle_num
-        self.particle_max_num = fluid_particle_num + rigid_body_particle_num # TODO: make it able to add particles
+        self.particle_max_num = fluid_particle_num + rigid_body_particle_num + self.compute_box_particle_num(self.domain_box_start, self.domain_box_size, space=self.particle_spacing, thickness=0.03)
 
         print(f"Fluid particle num: {self.fluid_particle_num}, Rigid body particle num: {self.rigid_body_particle_num}")
 
@@ -139,7 +142,7 @@ class BaseContainer:
         # self.rigid_body_num = ti.field(dtype=int, shape=()) # TODO: make it able to grow
         # self.rigid_body_num[None] = num_rigid_bodies
         self.object_num = ti.field(dtype=int, shape=())
-        self.object_num[None] = num_fluid_object + num_rigid_object
+        self.object_num[None] = num_fluid_object + num_rigid_object + 1 # +1 for the domain box
 
         self.rigid_particle_original_positions = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
         self.rigid_body_is_dynamic = ti.field(dtype=int, shape=self.max_num_object)
@@ -178,6 +181,24 @@ class BaseContainer:
             self.x_vis_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
             self.color_vis_buffer = ti.Vector.field(3, dtype=float, shape=self.particle_max_num)
 
+        # self.add_box(
+        #     object_id=self.object_num[None]-1, # give the last object id to the domain box
+        #     lower_corner=self.domain_box_start,
+        #     cube_size=self.domain_box_size,
+        #     thickness=0.03,
+        #     material=self.material_rigid,
+        #     is_dynamic=False,
+        #     space=self.particle_spacing,
+        #     color=(127, 127, 127)
+        # )
+
+        # self.object_visibility[self.object_num[None]-1] = 0
+        # self.object_materials[self.object_num[None]-1] = self.material_rigid
+        # self.object_id_rigid_body.add(self.object_num[None]-1)
+        # self.rigid_body_is_dynamic[self.object_num[None]-1] = 0
+        # self.rigid_body_velocities[self.object_num[None]-1] = ti.Vector([0.0 for _ in range(self.dim)])
+        # self.object_collection[self.object_num[None]-1] = 0 # dummy
+        
 
     def insert_object(self):
     ###### Add particles ######
@@ -541,12 +562,18 @@ class BaseContainer:
             np_arr[i] = src_arr[i]
     
     def copy_to_vis_buffer(self, invisible_objects=[], dim=3):
+        self.flush_vis_buffer()
         for obj_id in self.object_collection:
             if self.object_visibility[obj_id] == 1:
                 if dim ==3:
                     self._copy_to_vis_buffer_3d(obj_id)
                 elif dim == 2:
                     self._copy_to_vis_buffer_2d(obj_id)
+
+    @ti.kernel
+    def flush_vis_buffer(self):
+        self.x_vis_buffer.fill(0.0)
+        self.color_vis_buffer.fill(0.0)
 
 
     @ti.kernel
@@ -646,6 +673,31 @@ class BaseContainer:
         return reduce(lambda x, y: x * y,
                                    [len(n) for n in num_dim])
 
+    def compute_box_particle_num(self, lower_corner, cube_size, thickness, space=None):
+        if space is None:
+            space = self.particle_diameter
+        num_dim = []
+        for i in range(self.dim):
+            num_dim.append(
+                np.arange(lower_corner[i], lower_corner[i] + cube_size[i],
+                          space))
+            
+        new_positions = np.array(np.meshgrid(*num_dim,
+                                             sparse=False,
+                                             indexing='ij'),
+                                 dtype=np.float32)
+        new_positions = new_positions.reshape(-1,
+                                              reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
+        
+        # remove particles inside the box
+        # create mask
+        mask = np.zeros(new_positions.shape[0], dtype=bool)
+        for i in range(self.dim):
+            mask = mask | ((new_positions[:, i] <= lower_corner[i] + thickness) | (new_positions[:, i] >= lower_corner[i] + cube_size[i] - thickness))
+        new_positions = new_positions[mask]
+        return new_positions.shape[0]
+
+
     def add_cube(self,
                  object_id,
                  lower_corner,
@@ -668,9 +720,7 @@ class BaseContainer:
             num_dim.append(
                 np.arange(lower_corner[i], lower_corner[i] + cube_size[i],
                           space))
-        num_new_particles = reduce(lambda x, y: x * y,
-                                   [len(n) for n in num_dim])
-
+            
         new_positions = np.array(np.meshgrid(*num_dim,
                                              sparse=False,
                                              indexing='ij'),
@@ -678,6 +728,8 @@ class BaseContainer:
         new_positions = new_positions.reshape(-1,
                                               reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
         print("new position shape ", new_positions.shape)
+
+        num_new_particles = new_positions.shape[0]
 
         if velocity is None:
             velocity_arr = np.full_like(new_positions, 0, dtype=np.float32)
@@ -690,3 +742,56 @@ class BaseContainer:
         density_arr = np.full_like(np.zeros(num_new_particles, dtype=np.float32), density if density is not None else 1000.)
         pressure_arr = np.full_like(np.zeros(num_new_particles, dtype=np.float32), pressure if pressure is not None else 0.)
         self.add_particles(object_id, num_new_particles, new_positions, velocity_arr, density_arr, pressure_arr, material_arr, is_dynamic_arr, color_arr)
+
+
+    def add_box(self,
+                 object_id,
+                 lower_corner,
+                 cube_size,
+                 thickness,
+                 material,
+                 is_dynamic,
+                 color=(0,0,0),
+                 density=None,
+                 pressure=None,
+                 velocity=None,
+                 space=None,
+                ):
+        if space is None:
+            space = self.particle_diameter
+        num_dim = []
+        for i in range(self.dim):
+            num_dim.append(
+                np.arange(lower_corner[i], lower_corner[i] + cube_size[i],
+                          space))
+            
+        new_positions = np.array(np.meshgrid(*num_dim,
+                                             sparse=False,
+                                             indexing='ij'),
+                                 dtype=np.float32)
+        new_positions = new_positions.reshape(-1,
+                                              reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
+        
+        # remove particles inside the box
+        # create mask
+        mask = np.zeros(new_positions.shape[0], dtype=bool)
+        for i in range(self.dim):
+            mask = mask | ((new_positions[:, i] <= lower_corner[i] + thickness) | (new_positions[:, i] >= lower_corner[i] + cube_size[i] - thickness))
+            #! for testing
+            # mask = mask | (new_positions[:, i] <= lower_corner[i] + thickness)
+        new_positions = new_positions[mask]
+
+        num_new_particles = new_positions.shape[0]
+
+        if velocity is None:
+            velocity_arr = np.full_like(new_positions, 0, dtype=np.float32)
+        else:
+            velocity_arr = np.array([velocity for _ in range(num_new_particles)], dtype=np.float32)
+
+        material_arr = np.full_like(np.zeros(num_new_particles, dtype=np.int32), material)
+        is_dynamic_arr = np.full_like(np.zeros(num_new_particles, dtype=np.int32), is_dynamic)
+        color_arr = np.stack([np.full_like(np.zeros(num_new_particles, dtype=np.int32), c) for c in color], axis=1)
+        density_arr = np.full_like(np.zeros(num_new_particles, dtype=np.float32), density if density is not None else 1000.)
+        pressure_arr = np.full_like(np.zeros(num_new_particles, dtype=np.float32), pressure if pressure is not None else 0.)
+        self.add_particles(object_id, num_new_particles, new_positions, velocity_arr, density_arr, pressure_arr, material_arr, is_dynamic_arr, color_arr)
+
