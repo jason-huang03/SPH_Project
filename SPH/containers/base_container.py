@@ -181,23 +181,23 @@ class BaseContainer:
             self.x_vis_buffer = ti.Vector.field(self.dim, dtype=float, shape=self.particle_max_num)
             self.color_vis_buffer = ti.Vector.field(3, dtype=float, shape=self.particle_max_num)
 
-        # self.add_box(
-        #     object_id=self.object_num[None]-1, # give the last object id to the domain box
-        #     lower_corner=self.domain_box_start,
-        #     cube_size=self.domain_box_size,
-        #     thickness=0.03,
-        #     material=self.material_rigid,
-        #     is_dynamic=False,
-        #     space=self.particle_spacing,
-        #     color=(127, 127, 127)
-        # )
+        self.add_box(
+            object_id=self.object_num[None]-1, # give the last object id to the domain box
+            lower_corner=self.domain_box_start,
+            cube_size=self.domain_box_size,
+            thickness=0.03,
+            material=self.material_rigid,
+            is_dynamic=False,
+            space=self.particle_spacing,
+            color=(127, 127, 127)
+        )
 
-        # self.object_visibility[self.object_num[None]-1] = 0
-        # self.object_materials[self.object_num[None]-1] = self.material_rigid
-        # self.object_id_rigid_body.add(self.object_num[None]-1)
-        # self.rigid_body_is_dynamic[self.object_num[None]-1] = 0
-        # self.rigid_body_velocities[self.object_num[None]-1] = ti.Vector([0.0 for _ in range(self.dim)])
-        # self.object_collection[self.object_num[None]-1] = 0 # dummy
+        self.object_visibility[self.object_num[None]-1] = 0
+        self.object_materials[self.object_num[None]-1] = self.material_rigid
+        self.object_id_rigid_body.add(self.object_num[None]-1)
+        self.rigid_body_is_dynamic[self.object_num[None]-1] = 0
+        self.rigid_body_velocities[self.object_num[None]-1] = ti.Vector([0.0 for _ in range(self.dim)])
+        self.object_collection[self.object_num[None]-1] = 0 # dummy
         
 
     def insert_object(self):
@@ -612,6 +612,15 @@ class BaseContainer:
         obj_id = rigid_body["objectId"]
         mesh = tm.load(rigid_body["geometryFile"])
         mesh.apply_scale(rigid_body["scale"])
+
+        if rigid_body["isDynamic"] == False:
+            # for static rigid body, we will not run renew_rigid_particle_state function. So we put them in the right place here
+            offset = np.array(rigid_body["translation"])
+            angle = rigid_body["rotationAngle"] / 360 * 2 * 3.1415926
+            direction = rigid_body["rotationAxis"]
+            rot_matrix = tm.transformations.rotation_matrix(angle, direction, mesh.vertices.mean(axis=0))
+            mesh.apply_transform(rot_matrix)
+            mesh.vertices += offset
         
         # Backup the original mesh for exporting obj
         mesh_backup = mesh.copy()

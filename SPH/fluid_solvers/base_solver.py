@@ -187,7 +187,7 @@ class BaseSolver():
             if self.container.particle_is_dynamic[p_j]:
                 object_j = self.container.particle_object_ids[p_j]
                 center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
-                force_j =  - acc * (self.container.particle_rest_volumes[p_j] * self.density_0)
+                force_j =  - acc * self.container.particle_masses[p_i]
                 torque_j = ti.math.cross(pos_j - center_of_mass_j, force_j)
                 self.container.rigid_body_forces[object_j] += force_j
                 self.container.rigid_body_torques[object_j] += torque_j
@@ -249,12 +249,12 @@ class BaseSolver():
         if self.container.particle_materials[p_j] == self.container.material_rigid:
             R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
             nabla_ij = self.kernel_gradient(R)
-            v_xy = ti.math.dot(self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j], R)
             ret += (
                 2 * (self.container.dim + 2) * self.viscosity_b
                 * self.density_0 * self.container.particle_rest_volumes[p_j]
                 / self.container.particle_densities[p_i]
-                * v_xy / (R.norm_sqr() + 0.01 * self.container.dh**2)
+                * ti.math.dot(self.container.particle_velocities[p_j], nabla_ij)
+                / (R.norm_sqr() + 0.01 * self.container.dh**2)
                 * nabla_ij
             )
     
@@ -382,19 +382,24 @@ class BaseSolver():
     def add_viscosity_force_to_rigid_task(self, p_i, p_j, ret: ti.template()):
         if self.container.particle_materials[p_j] == self.container.material_rigid and self.container.particle_is_dynamic[p_j]:
             pos_i = self.container.particle_positions[p_i]
-            d = 2 * (self.container.dim + 2)
             pos_j = self.container.particle_positions[p_j]
             # Compute the viscosity force contribution
             R = pos_i - pos_j
+            v_ij = self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j]
             nabla_ij = self.kernel_gradient(R)
-            v_xy = ti.math.dot(self.container.particle_velocities[p_i] - self.container.particle_velocities[p_j], R)
 
-            PI = - 2 * (d + 2) * self.viscosity_b / self.container.particle_densities[p_i]  / self.container.particle_densities[p_i] * v_xy / (R.norm_sqr() + 0.01 * self.container.dh**2) 
-            acc = - (self.density_0 * self.container.particle_rest_volumes[p_j]) * PI * nabla_ij
+            acc = (
+                2 * (self.container.dim + 2) * self.viscosity_b
+                * (self.density_0 * self.container.particle_rest_volumes[p_j])
+                / self.container.particle_densities[p_i] /  self.container.particle_densities[p_i]
+                * ti.math.dot(v_ij, R)
+                / (R.norm_sqr() + 0.01 * self.container.dh**2)
+                * nabla_ij
+            )
 
             object_j = self.container.particle_object_ids[p_j]
             center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
-            force_j =  - acc * (self.container.particle_rest_volumes[p_j] * self.density_0)
+            force_j =  - acc * self.container.particle_masses[p_i]
             torque_j = ti.math.cross(pos_j - center_of_mass_j, force_j)
             self.container.rigid_body_forces[object_j] += force_j
             self.container.rigid_body_torques[object_j] += torque_j
