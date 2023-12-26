@@ -16,7 +16,10 @@ class BaseSolver():
 
         self.viscosity = 0.01
         self.viscosity = self.container.cfg.get_cfg("viscosity")
-        self.viscosity_b = self.container.cfg.get_cfg("viscosity")
+        # self.viscosity_b = self.container.cfg.get_cfg("viscosity_b")
+        # if self.viscosity_b == None:
+        #     self.viscosity_b = self.viscosity
+        self.viscosity_b = 10.0
         self.density_0 = 1000.0  
         self.density_0 = self.container.cfg.get_cfg("density0")
         self.surface_tension = 0.01
@@ -39,7 +42,7 @@ class BaseSolver():
         self.cg_error = ti.field(dtype=ti.f32, shape=())
         self.diagnol_ii_inv = ti.Matrix.field(self.container.dim, self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
 
-
+        self.cg_tol = 1e-8
 
     @ti.func
     def kernel_W(self, R_mod):
@@ -246,6 +249,7 @@ class BaseSolver():
     @ti.func
     def compute_b_i_task(self, p_i, p_j, ret: ti.template()):
         # we assume p_i is a fluid particle
+        # TODO: check this function
         if self.container.particle_materials[p_j] == self.container.material_rigid:
             R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
             nabla_ij = self.kernel_gradient(R)
@@ -253,7 +257,7 @@ class BaseSolver():
                 2 * (self.container.dim + 2) * self.viscosity_b
                 * self.density_0 * self.container.particle_rest_volumes[p_j]
                 / self.container.particle_densities[p_i]
-                * ti.math.dot(self.container.particle_velocities[p_j], nabla_ij)
+                * ti.math.dot(self.container.particle_velocities[p_j], R)
                 / (R.norm_sqr() + 0.01 * self.container.dh**2)
                 * nabla_ij
             )
@@ -266,7 +270,7 @@ class BaseSolver():
         R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
         nabla_ij = self.kernel_gradient(R)
         if self.container.particle_materials[p_j] == self.container.material_fluid:
-            m_ij = (self.container.particle_masses[p_i] * self.container.particle_masses[p_j]) / 2
+            m_ij = (self.container.particle_masses[p_i] + self.container.particle_masses[p_j]) / 2
             A_ij = (- 2 * (self.container.dim + 2) * self.viscosity * m_ij
                     / self.container.particle_densities[p_j]
                     / (R.norm_sqr() + 0.01 * self.container.dh**2) 
@@ -353,7 +357,7 @@ class BaseSolver():
         tol = 1000.0
         num_itr = 0
 
-        while tol > 1e-10:
+        while tol > self.cg_tol and num_itr < 1000:
             self.compute_Ap()
             self.compute_cg_alpha()
             self.update_cg_x()
@@ -399,7 +403,7 @@ class BaseSolver():
 
             object_j = self.container.particle_object_ids[p_j]
             center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
-            force_j =  - acc * self.container.particle_masses[p_i]
+            force_j =  - acc * self.container.particle_rest_volumes[p_i] * self.density_0
             torque_j = ti.math.cross(pos_j - center_of_mass_j, force_j)
             self.container.rigid_body_forces[object_j] += force_j
             self.container.rigid_body_torques[object_j] += torque_j

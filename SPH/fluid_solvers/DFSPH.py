@@ -11,8 +11,8 @@ class DFSPHSolver(BaseSolver):
         super().__init__(container)
 
         # dfsph related parameters
-        self.m_max_iterations_v = 100
-        self.m_max_iterations = 100
+        self.m_max_iterations_v = 1000
+        self.m_max_iterations = 1000
 
         self.m_eps = 1e-5
 
@@ -148,10 +148,11 @@ class DFSPHSolver(BaseSolver):
             # Max allowed density fluctuation
             # use max density error divided by time step size
             eta = self.max_error_V * self.density_0 / self.dt[None]
+            num_itr += 1
 
             if average_density_derivative_error <= eta:
                 break
-            num_itr += 1
+
         
         print(f"DFSPH - iteration V: {num_itr} Avg density err: {average_density_derivative_error}")
 
@@ -233,9 +234,10 @@ class DFSPHSolver(BaseSolver):
             average_density_error = self.compute_density_error()
             # Max allowed density fluctuation
             eta = self.max_error
+            num_itr += 1
+
             if average_density_error <= eta:
                 break
-            num_itr += 1
         print(f"DFSPH - iterations: {num_itr} Avg density Err: {average_density_error * self.density_0:.4f}")
         # Multiply by h, the time step size has to be removed 
         # to make the stiffness value independent 

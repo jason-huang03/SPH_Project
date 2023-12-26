@@ -8,7 +8,7 @@
 		"density0": 1000, 
 		"gravitation": [0.0, -9.81, 0.0],
 		"simulationMethod": "dfsph",
-		"timeStepSize": 0.004,
+		"timeStepSize": 0.001,
 		"viscosity": 0.01,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,

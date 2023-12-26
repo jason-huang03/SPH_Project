@@ -47,7 +47,7 @@ class PyBulletSolver():
 
 
     def create_boundary(self, thickness: float = 0.01):
-        eps = self.container.dh # we do not want the rigid to hit the boundary of fluid. This seems to cause instability.
+        eps = self.container.padding + self.container.particle_diameter + self.container.domain_box_thickness # we do not want the rigid to hit the boundary of fluid. This seems to cause instability.
         domain_start = self.container.domain_start
         domain_end = self.container.domain_end
         domain_start = np.array(domain_start) + eps

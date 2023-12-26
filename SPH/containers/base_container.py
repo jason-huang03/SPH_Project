@@ -62,6 +62,7 @@ class BaseContainer:
 
         self.domain_box_start = [self.domain_start[i] + self.padding for i in range(self.dim)]
         self.domain_box_size = [self.domain_size[i] - 2 * self.padding for i in range(self.dim)]
+        self.domain_box_thickness = 0.03
 
         # All objects id and its particle num
         self.object_collection = dict()
@@ -111,7 +112,7 @@ class BaseContainer:
 
         self.fluid_particle_num = fluid_particle_num
         self.rigid_body_particle_num = rigid_body_particle_num
-        self.particle_max_num = fluid_particle_num + rigid_body_particle_num + self.compute_box_particle_num(self.domain_box_start, self.domain_box_size, space=self.particle_spacing, thickness=0.03)
+        self.particle_max_num = fluid_particle_num + rigid_body_particle_num + self.compute_box_particle_num(self.domain_box_start, self.domain_box_size, space=self.particle_spacing, thickness=self.domain_box_thickness)
 
         print(f"Fluid particle num: {self.fluid_particle_num}, Rigid body particle num: {self.rigid_body_particle_num}")
 
@@ -185,7 +186,7 @@ class BaseContainer:
             object_id=self.object_num[None]-1, # give the last object id to the domain box
             lower_corner=self.domain_box_start,
             cube_size=self.domain_box_size,
-            thickness=0.03,
+            thickness=self.domain_box_thickness,
             material=self.material_rigid,
             is_dynamic=False,
             space=self.particle_spacing,
