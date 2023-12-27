@@ -4,9 +4,6 @@ import numpy as np
 import trimesh as tm
 from functools import reduce
 from ..utils import SimConfig
-
-# TODO: distinguish between particle num and particle max num. Now they are the same
-
 @ti.data_oriented
 class BaseContainer:
     def __init__(self, config: SimConfig, GGUI=False):

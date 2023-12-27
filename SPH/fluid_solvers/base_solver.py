@@ -14,12 +14,12 @@ class BaseSolver():
         
         self.g = np.array(self.container.cfg.get_cfg("gravitation"))
 
-        self.viscosity = 0.01
+
+        self.viscosity_method = self.container.cfg.get_cfg("viscosityMetthod")
         self.viscosity = self.container.cfg.get_cfg("viscosity")
-        # self.viscosity_b = self.container.cfg.get_cfg("viscosity_b")
-        # if self.viscosity_b == None:
-        #     self.viscosity_b = self.viscosity
-        self.viscosity_b = 10.0
+        self.viscosity_b = self.container.cfg.get_cfg("viscosity_b")
+        if self.viscosity_b == None:
+            self.viscosity_b = self.viscosity
         self.density_0 = 1000.0  
         self.density_0 = self.container.cfg.get_cfg("density0")
         self.surface_tension = 0.01
@@ -31,18 +31,19 @@ class BaseSolver():
 
         self.rigid_solver = PyBulletSolver(container, gravity=self.g,  dt=self.dt[None])
 
-        self.cg_p = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
-        self.original_velocity = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
-        self.Ap = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
-        self.cg_x = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
-        self.b = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
-        self.cg_alpha = ti.field(dtype=ti.f32, shape=())
-        self.cg_beta = ti.field(dtype=ti.f32, shape=())
-        self.cg_r = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
-        self.cg_error = ti.field(dtype=ti.f32, shape=())
-        self.diagnol_ii_inv = ti.Matrix.field(self.container.dim, self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+        if self.viscosity_method == "implicit":
+            self.cg_p = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+            self.original_velocity = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+            self.cg_Ap = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+            self.cg_x = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+            self.cg_b = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+            self.cg_alpha = ti.field(dtype=ti.f32, shape=())
+            self.cg_beta = ti.field(dtype=ti.f32, shape=())
+            self.cg_r = ti.Vector.field(self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
+            self.cg_error = ti.field(dtype=ti.f32, shape=())
+            self.cg_diagnol_ii_inv = ti.Matrix.field(self.container.dim, self.container.dim, dtype=ti.f32, shape=self.container.particle_max_num)
 
-        self.cg_tol = 1e-8
+            self.cg_tol = 1e-8
 
     @ti.func
     def kernel_W(self, R_mod):
@@ -124,7 +125,7 @@ class BaseSolver():
     def compute_non_pressure_acceleration(self):
         self.compute_gravity_acceleration()
         self.compute_surface_tension_acceleration()
-        self.compute_viscosity_acceleration()
+        self.compute_viscosity_acceleration_standard()
 
     @ti.kernel
     def compute_gravity_acceleration(self):
@@ -157,15 +158,15 @@ class BaseSolver():
                 ret -= self.surface_tension / self.container.particle_masses[p_i] * self.container.particle_masses[p_j] * R * self.kernel_W(ti.Vector([self.container.particle_diameter, 0.0, 0.0]).norm())            
 
     @ti.kernel
-    def compute_viscosity_acceleration(self):
+    def compute_viscosity_acceleration_standard(self):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 a_i = ti.Vector([0.0 for _ in range(self.container.dim)])
-                self.container.for_all_neighbors(p_i, self.compute_viscosity_acceleration_task, a_i)
+                self.container.for_all_neighbors(p_i, self.compute_viscosity_acceleration_standard_task, a_i)
                 self.container.particle_accelerations[p_i] += a_i
 
     @ti.func
-    def compute_viscosity_acceleration_task(self, p_i, p_j, ret: ti.template()):
+    def compute_viscosity_acceleration_standard_task(self, p_i, p_j, ret: ti.template()):
         pos_i = self.container.particle_positions[p_i]
         d = 2 * (self.container.dim + 2)
         pos_j = self.container.particle_positions[p_j]
@@ -201,8 +202,8 @@ class BaseSolver():
         self.cg_r.fill(0.0)
         self.cg_p.fill(0.0)
         self.original_velocity.fill(0.0)
-        self.b.fill(0.0)
-        self.Ap.fill(0.0)
+        self.cg_b.fill(0.0)
+        self.cg_Ap.fill(0.0)
 
         # initial guess for x. We use v^{df} + v(t) - v^{df}(t - dt) as initial guess. we assume v(t) - v^{df}(t - dt) is already in x
         for p_i in range(self.container.particle_num[None]):
@@ -221,11 +222,11 @@ class BaseSolver():
                 self.container.for_all_neighbors(p_i, self.compute_A_ii_task, ret)
                 # preconditioner
                 diag_ii = ti.Matrix.identity(ti.f32, self.container.dim) - ret * self.dt[None] / self.container.particle_densities[p_i]
-                self.diagnol_ii_inv[p_i] = ti.math.inverse(diag_ii)
+                self.cg_diagnol_ii_inv[p_i] = ti.math.inverse(diag_ii)
 
                 ret1 = ti.Vector([0.0 for _ in range(self.container.dim)])
                 self.container.for_all_neighbors(p_i, self.compute_b_i_task, ret1)
-                self.b[p_i] = self.container.particle_velocities[p_i] - self.dt[None] * ret1 / self.container.particle_densities[p_i]
+                self.cg_b[p_i] = self.container.particle_velocities[p_i] - self.dt[None] * ret1 / self.container.particle_densities[p_i]
 
                 # copy x into p to calculate Ax
                 self.cg_p[p_i] = self.cg_x[p_i]
@@ -234,7 +235,7 @@ class BaseSolver():
     def prepare_conjugate_gradient_solver2(self):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.cg_r[p_i] = self.diagnol_ii_inv[p_i]@self.b[p_i] - self.Ap[p_i]
+                self.cg_r[p_i] = self.cg_diagnol_ii_inv[p_i]@self.cg_b[p_i] - self.cg_Ap[p_i]
                 self.cg_p[p_i] = self.cg_r[p_i]
 
                 
@@ -296,14 +297,14 @@ class BaseSolver():
                 ret *= self.dt[None]
                 ret /= self.container.particle_densities[p_i]
                 ret += self.cg_p[p_i]
-                self.Ap[p_i] = ret    
+                self.cg_Ap[p_i] = ret    
     
     @ti.func
     def compute_Ap_task(self, p_i, p_j, ret: ti.template()):
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             A_ij = self.compute_A_ij(p_i, p_j)
             # preconditioner
-            ret += self.diagnol_ii_inv[p_i] @ (-A_ij) @ self.cg_p[p_j]
+            ret += self.cg_diagnol_ii_inv[p_i] @ (-A_ij) @ self.cg_p[p_j]
 
     @ti.kernel
     def compute_cg_alpha(self):
@@ -313,7 +314,7 @@ class BaseSolver():
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 numerator += self.cg_r[p_i].norm_sqr()
-                denominator += self.cg_p[p_i].dot(self.Ap[p_i])
+                denominator += self.cg_p[p_i].dot(self.cg_Ap[p_i])
 
         #! note for divide by zero
         self.cg_alpha[None] = numerator / denominator
@@ -331,7 +332,7 @@ class BaseSolver():
         denominator = 0.0
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
-                new_r_i = self.cg_r[p_i] - self.cg_alpha[None] * self.Ap[p_i]
+                new_r_i = self.cg_r[p_i] - self.cg_alpha[None] * self.cg_Ap[p_i]
                 numerator += new_r_i.norm_sqr()
                 denominator += self.cg_r[p_i].norm_sqr()
                 self.cg_error[None] += new_r_i.norm_sqr()

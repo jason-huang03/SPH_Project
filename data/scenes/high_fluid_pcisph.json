@@ -7,6 +7,7 @@
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
 		"simulationMethod": "pcisph",
+		"viscosityMethod": "standard",
 		"gravitation": [0.0, -9.81, 0.0],
 		"timeStepSize": 0.001,
 		"viscosity": 0.01,

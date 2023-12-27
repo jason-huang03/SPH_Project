@@ -11,10 +11,10 @@ class DFSPHSolverImplicitViscosity(DFSPHSolver):
     def __init__(self, container: DFSPHContainer):
         super().__init__(container)
 
+
     def compute_non_pressure_acceleration(self):
         self.compute_gravity_acceleration()
         self.compute_surface_tension_acceleration()
-        # self.compute_viscosity_acceleration()
 
     def _step(self):
         self.compute_non_pressure_acceleration()

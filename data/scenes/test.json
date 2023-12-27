@@ -8,7 +8,8 @@
 		"density0": 1000, 
 		"gravitation": [0.0, -9.81, 0.0],
 		"simulationMethod": "dfsph_implicit_viscosity",
-		"timeStepSize": 0.0008,
+		"viscosityMethod": "implicit",
+		"timeStepSize": 0.0016,
 		"viscosity": 2000,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
@@ -24,10 +25,23 @@
 			"rotationAngle": 0,
 			"scale": [1, 1, 1],
 			"velocity": [0.0, 0.0, 0.0],
-			"density": 5000.0,
+			"density": 1000.0,
 			"color": [255, 255, 255], 
 			"isDynamic": true,
 			"entryTime": -1.0
+		},
+		{
+            "objectId": 2,
+			"geometryFile": "./data/models/cube.obj",
+			"translation": [1.0, 2.3, 1.0],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [1, 1, 1],
+			"velocity": [0.0, -2.0, 0.0],
+			"density": 1000.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true,
+			"entryTime": 1.0
 		}
 	],
 	"FluidBlocks": [
