@@ -3,6 +3,7 @@
 	{
         "domainStart": [0.0, 0.0],
         "domainEnd": [80.0, 80.0],
+		"addDomainBox": false,
 		"particleRadius": 0.2,
 		"supportRadius": 0.8,
 		"particleSpacing": 0.5,
@@ -12,7 +13,7 @@
 		"simulationMethod": "dfsph",
 		"viscosityMethod": "standard",
 		"timeStepSize": 0.005,
-		"viscosity": 0.01,
+		"viscosity": 10.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
 		"outputInterval": 10,

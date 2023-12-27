@@ -4,7 +4,7 @@ import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
 from SPH.containers import DFSPHContainer, WCSPHContainer, PCISPHContainer, PBFContainer
-from SPH.fluid_solvers import DFSPHSolver ,DFSPHSolverImplicitViscosity, WCSPHSolver, PCISPHSolver, PBFSolver
+from SPH.fluid_solvers import DFSPHSolver, WCSPHSolver, PCISPHSolver, PBFSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.8)
 
@@ -35,9 +35,6 @@ if __name__ == "__main__":
     if simulation_method == "dfsph":
         container = DFSPHContainer(config, GGUI=True)
         solver = DFSPHSolver(container)
-    elif simulation_method == "dfsph_implicit_viscosity":
-        container = DFSPHContainer(config, GGUI=True)
-        solver = DFSPHSolverImplicitViscosity(container)
     elif simulation_method == "wcsph":
         container = WCSPHContainer(config, GGUI=True)
         solver = WCSPHSolver(container)

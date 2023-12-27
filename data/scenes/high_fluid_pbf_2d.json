@@ -3,6 +3,7 @@
 	{
         "domainStart": [0.0, 0.0],
         "domainEnd": [80.0, 80.0],
+		"addDomainBox": false,
 		"particleRadius": 1.11,
 		"supportRadius": 1.12,
 		"particleSpacing": 0.88,

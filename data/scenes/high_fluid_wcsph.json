@@ -3,6 +3,7 @@
 	{
         "domainStart": [0.0, 0.0, 0.0],
         "domainEnd": [2.0, 6.0, 2.0],
+		"addDomainBox": false,
 		"particleRadius": 0.01,
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
@@ -10,7 +11,7 @@
 		"viscosityMethod": "standard",
 		"gravitation": [0.0, -9.81, 0.0],
 		"timeStepSize": 0.0004,
-		"viscosity": 0.01,
+		"viscosity": 10.0,
 		"stiffness": 50000,
 		"exponent": 7,
 		"boundaryHandlingMethod": 0,
