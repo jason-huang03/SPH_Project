@@ -150,12 +150,13 @@ The rendering script can put rendering jobs on multiple gpus.  You can set `CUDA
 ## TODO
 
 - [ ] IISPH
+- [ ] check implementation of PCISPH
 - [ ] PBF 3D parameter tuning
 - [x] check whether rigid-fluid coupling is correct in every algorithm
 - [ ] model boundary for fluid as static rigid body
 - [ ] enable movable rigid blocks
 - [ ] interactable 2D scene
-- [ ] better viscosity modeling
+- [x] better viscosity modeling
 - [x] rendering with blender
 
 ## Acknowledgements

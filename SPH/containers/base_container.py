@@ -49,7 +49,7 @@ class BaseContainer:
         self.V0 = 0.8 * self.particle_diameter ** self.dim
         self.particle_num = ti.field(int, shape=())
 
-        self.max_num_object = 10
+        self.max_num_object = 20
 
         # Grid related properties
         self.grid_size = self.dh

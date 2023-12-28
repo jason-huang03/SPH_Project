@@ -1,0 +1,102 @@
+{
+	"Configuration": 
+	{
+        "domainStart": [0.0, 0.0, 0.0],
+        "domainEnd": [2.5, 4.0, 2.5],
+		"addDomainBox": true,
+		"particleRadius": 0.01,
+		"numberOfStepsPerRenderUpdate": 1,
+		"density0": 1000, 
+		"gravitation": [0.0, -9.81, 0.0],
+		"simulationMethod": "dfsph",
+		"viscosityMethod": "standard",
+		"timeStepSize": 0.0008,
+		"viscosity": 15.0,
+        "viscosity_b": 1.0,
+		"boundaryHandlingMethod": 0,
+		"exportFrame": true,
+		"exportPly": false,
+		"exportObj": false
+	},
+	"RigidBodies": [
+		{
+            "objectId": 1,
+			"geometryFile": "./data/models/Dragon_50k.obj",
+			"translation": [1.5, 2.0, 1.5],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 90,
+			"scale": [0.6, 0.6, 0.6],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 800.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true,
+			"entryTime": -1.0
+		},
+		{
+            "objectId": 2,
+			"geometryFile": "./data/models/sphere.obj",
+			"translation": [0.3, 2.4, 1.25],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [0.6, 0.6 , 0.6],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 500.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true,
+			"entryTime": -1.0
+		},
+		{
+            "objectId": 3,
+			"geometryFile": "./data/models/sphere.obj",
+			"translation": [1.1, 3.0, 0.3],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [0.6, 0.6, 0.6],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 500.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true,
+			"entryTime": -1.0
+		},
+		{
+            "objectId": 4,
+			"geometryFile": "./data/models/sphere.obj",
+			"translation": [2.2, 2.7, 1.15],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [0.6, 0.6, 0.6],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 500.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true,
+			"entryTime": -1.0
+		},
+		{
+            "objectId": 5,
+			"geometryFile": "./data/models/sphere.obj",
+			"translation": [2.2, 2.2, 2.2],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 0,
+			"scale": [0.6, 0.6, 0.6],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 500.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true,
+			"entryTime": -1.0
+		}
+	],
+
+	"FluidBlocks": [
+		{
+            "objectId": 0,
+			"start": [0.23, 0.09, 0.11],
+			"end": [2.28, 1.4, 2.38],
+			"translation": [0.0, 0.0, 0.0],
+			"scale": [1, 1, 1],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 1000.0,
+			"color": [50, 100, 200],
+			"entryTime": -1.0
+		}
+	]
+}

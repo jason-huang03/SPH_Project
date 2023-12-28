@@ -11,8 +11,8 @@ class PCISPHSolver(BaseSolver):
         super().__init__(container)
 
         # pcisph related parameters
-        self.max_iterations = 50
-        self.eta = 0.005
+        self.max_iterations = 100
+        self.eta = 0.01
 
     @ti.kernel
     def compute_pcisph_k(self):
@@ -209,12 +209,12 @@ class PCISPHSolver(BaseSolver):
 
             density_average_error = self.compute_density_error()
             density_average_error = ti.abs(density_average_error)
+            num_itr += 1
 
             if density_average_error < self.eta:
                 break
-            num_itr += 1
 
-        print(f"Density average error ratio: {density_average_error}, num_itr: {num_itr}")
+        print(f"Density average error: {density_average_error * self.density_0}, num_itr: {num_itr}")
 
 
     @ti.kernel

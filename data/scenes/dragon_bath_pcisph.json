@@ -10,7 +10,7 @@
 		"simulationMethod": "pcisph",
 		"viscosityMethod": "standard",
 		"gravitation": [0.0, -9.81, 0.0],
-		"timeStepSize": 0.0008,
+		"timeStepSize": 0.0006,
 		"viscosity": 10.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
@@ -21,22 +21,36 @@
 		{
             "objectId": 0,
 			"geometryFile": "./data/models/Dragon_50k.obj",
-			"translation": [2.7, 0.13, 1.0],
+			"translation": [2.2, 0.13, 1.0],
 			"rotationAxis": [0, 1, 0],
-			"rotationAngle": 60,
+			"rotationAngle": 90,
 			"scale": [1, 1, 1],
 			"velocity": [0.0, 0.0, 0.0],
 			"density": 1000.0,
 			"color": [255, 255, 255], 
 			"isDynamic": true,
 			"entryTime": -1.0
-		}
-	],
-	"FluidBlocks": [
+		},
 		{
             "objectId": 1,
-			"start": [0.1, 0.1, 0.5],
-			"end": [1.2, 2.9, 1.6],
+			"geometryFile": "./data/models/Dragon_50k.obj",
+			"translation": [2.8, 0.13, 1.0],
+			"rotationAxis": [0, 1, 0],
+			"rotationAngle": 90,
+			"scale": [1, 1, 1],
+			"velocity": [0.0, 0.0, 0.0],
+			"density": 4000.0,
+			"color": [255, 255, 255], 
+			"isDynamic": true,
+			"entryTime": -1.0
+		}
+	],
+
+	"FluidBlocks": [
+		{
+            "objectId": 2,
+			"start": [0.3, 0.2, 0.5],
+			"end": [1.2, 2.8, 1.6],
 			"translation": [0.2, 0.0, 0.2],
 			"scale": [1, 1, 1],
 			"velocity": [0.0, -1.0, 0.0],
@@ -46,3 +60,4 @@
 		}
 	]
 }
+
