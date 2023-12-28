@@ -2,6 +2,7 @@
 import taichi as ti
 import numpy as np
 import trimesh as tm
+import concurrent.futures
 from functools import reduce
 from ..utils import SimConfig
 @ti.data_oriented
@@ -660,24 +661,33 @@ class BaseContainer:
         rot_matrix = tm.transformations.rotation_matrix(angle, direction, mesh.vertices.mean(axis=0))
         mesh.apply_transform(rot_matrix)
         mesh.vertices += offset
-        
-        # Backup the original mesh for exporting obj
-        mesh_backup = mesh.copy()
-        rigid_body["mesh"] = mesh_backup
-        rigid_body["restPosition"] = mesh_backup.vertices
-        rigid_body["restCenterOfMass"] = mesh_backup.vertices.mean(axis=0)
-        is_success = tm.repair.fill_holes(mesh)
-            # print("Is the mesh successfully repaired? ", is_success)
-        voxelized_mesh = mesh.voxelized(pitch=pitch)
-        voxelized_mesh = mesh.voxelized(pitch=pitch).fill()
-        # voxelized_mesh = mesh.voxelized(pitch=self.particle_diameter).hollow()
-        voxelized_points_np = voxelized_mesh.points
-        print(f"rigid body {obj_id} num: {voxelized_points_np.shape[0]}")
 
-        # voxelized_points_np = tm.sample.sample_surface_even(mesh, 4000)[0]
+        min_point, max_point = mesh.bounding_box.bounds
+        num_dim = []
+        for i in range(self.dim):
+            num_dim.append(
+                np.arange(min_point[i], max_point[i], pitch))
         
-        return voxelized_points_np
+        new_positions = np.array(np.meshgrid(*num_dim,
+                                             sparse=False,
+                                             indexing='ij'),
+                                 dtype=np.float32)
+        new_positions = new_positions.reshape(-1,
+                                              reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
+        
+        print(f"processing {len(new_positions)} points to decide whether they are inside the mesh")
+        inside = [False for _ in range(len(new_positions))]
 
+        # decide whether the points are inside the mesh or not
+        # TODO: make it parallel or precompute and store
+        for i in range(len(new_positions)):
+            if mesh.contains([new_positions[i]])[0]:
+                inside[i] = True
+            if i % 2000 == 0:
+                print(f"processing {i}th point")
+
+        new_positions = new_positions[inside]
+        return new_positions
 
     def compute_cube_particle_num(self, start, end, space=None):
         if space is None:

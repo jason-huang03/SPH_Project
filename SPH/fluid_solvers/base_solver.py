@@ -330,8 +330,10 @@ class BaseSolver():
                 numerator += self.cg_r[p_i].norm_sqr()
                 denominator += self.cg_p[p_i].dot(self.cg_Ap[p_i])
 
-        #! note for divide by zero
-        self.cg_alpha[None] = numerator / denominator
+        if denominator > 1e-18:
+            self.cg_alpha[None] = numerator / denominator
+        else:
+            self.cg_alpha[None] = 0.0
     
     @ti.kernel
     def update_cg_x(self):
@@ -352,9 +354,11 @@ class BaseSolver():
                 self.cg_error[None] += new_r_i.norm_sqr()
                 self.cg_r[p_i] = new_r_i
         
-        # ! note for divide by zero
         self.cg_error[None] = ti.sqrt(self.cg_error[None])
-        self.cg_beta[None] = numerator / denominator
+        if denominator > 1e-18:
+            self.cg_beta[None] = numerator / denominator
+        else:
+            self.cg_beta[None] = 0.0
 
     @ti.kernel
     def update_p(self):
@@ -376,6 +380,8 @@ class BaseSolver():
             self.compute_Ap()
             self.compute_cg_alpha()
             self.update_cg_x()
+
+
             self.update_cg_r_and_beta()
             self.update_p()
             tol = self.cg_error[None]
