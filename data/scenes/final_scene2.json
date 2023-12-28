@@ -2,8 +2,8 @@
 	"Configuration": 
 	{
         "domainStart": [0.0, 0.0, 0.0],
-        "domainEnd": [5.0, 5.0, 5.0],
-		"addDomainBox": false,
+        "domainEnd": [5.0, 7.0, 5.0],
+		"addDomainBox": true,
 		"particleRadius": 0.01,
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
@@ -12,7 +12,7 @@
 		"gravitation": [0.0, -9.81, 0.0],
 		"timeStepSize": 0.001,
 		"viscosity": 10000.0,
-		"viscosity_b": 2000.0,
+		"viscosity_b": 3000.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
 		"exportPly": true,

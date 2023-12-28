@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
     cnt = 0
     cnt_ply = 0
+    num_frame = 0
 
     while window.running:
         for i in range(substeps):
@@ -119,6 +120,7 @@ if __name__ == "__main__":
             if cnt % output_interval == 0:
                 os.makedirs(f"{scene_name}_output/{cnt:06}", exist_ok=True)
                 window.save_image(f"{scene_name}_output/{cnt:06}/raw_view.png")
+                num_frame += 1
         
         if cnt % output_interval == 0:
             if output_ply:
@@ -137,5 +139,5 @@ if __name__ == "__main__":
                         f.write(e)
 
         cnt += 1
-        # if cnt > 6000:
-        #     break
+        if num_frame >= 1800:
+            break

@@ -2,7 +2,7 @@
 import taichi as ti
 import numpy as np
 import trimesh as tm
-import concurrent.futures
+from tqdm import tqdm
 from functools import reduce
 from ..utils import SimConfig
 @ti.data_oriented
@@ -675,16 +675,18 @@ class BaseContainer:
         new_positions = new_positions.reshape(-1,
                                               reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
         
-        print(f"processing {len(new_positions)} points to decide whether they are inside the mesh")
+        print(f"processing {len(new_positions)} points to decide whether they are inside the mesh. This might take a while.")
         inside = [False for _ in range(len(new_positions))]
 
         # decide whether the points are inside the mesh or not
         # TODO: make it parallel or precompute and store
+        pbar = tqdm(total=len(new_positions))
         for i in range(len(new_positions)):
             if mesh.contains([new_positions[i]])[0]:
                 inside[i] = True
-            if i % 2000 == 0:
-                print(f"processing {i}th point")
+            pbar.update(1)
+
+        pbar.close()
 
         new_positions = new_positions[inside]
         return new_positions
