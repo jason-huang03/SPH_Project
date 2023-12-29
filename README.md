@@ -98,7 +98,7 @@ You can refer to the [official website](https://www.blender.org/) of blender for
 # download blender 3.6 Linux package from https://www.blender.org/download/lts/3-6/
 
 # uncompressed the .tar.gz file
-tar -xzvf blender-3.6.7-linux-x64.tar.xz
+tar -xf blender-3.6.7-linux-x64.tar.xz
 ```
 
 Add the following line in your `~/.bashrc` file.
@@ -125,7 +125,7 @@ To visualize the results, you can run the following command to make the images i
 
 ```bash
 python make_video.py --input_dir ./dragon_bath_dfsph_output \
--image_name raw_view.png --output_path --video.mp4 --fps 30
+--image_name raw_view.png --output_path --video.mp4 --fps 30
 ```
 
 To make the `.ply` particle file into `.obj` file for rendering, you can do surface reconstruction with the following command:
@@ -153,8 +153,7 @@ The rendering script can put rendering jobs on multiple gpus.  You can set `CUDA
 - [ ] check implementation of PCISPH
 - [ ] PBF 3D parameter tuning
 - [x] check whether rigid-fluid coupling is correct in every algorithm
-- [ ] model boundary for fluid as static rigid body
-- [ ] enable movable rigid blocks
+- [x] model boundary for fluid as static rigid body
 - [ ] interactable 2D scene
 - [x] better viscosity modeling
 - [x] rendering with blender
