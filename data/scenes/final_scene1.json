@@ -15,13 +15,13 @@
         "viscosity_b": 1.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
-		"exportPly": false,
-		"exportObj": false
+		"exportPly": true,
+		"exportObj": true
 	},
 	"RigidBodies": [
 		{
             "objectId": 1,
-			"geometryFile": "./data/models/Dragon_50k.obj",
+			"geometryFile": "./data/models/dragon.obj",
 			"translation": [1.5, 3.1, 1.5],
 			"rotationAxis": [0, 0, 1],
 			"rotationAngle": 45,

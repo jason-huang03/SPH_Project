@@ -139,5 +139,5 @@ if __name__ == "__main__":
                         f.write(e)
 
         cnt += 1
-        if num_frame >= 1800:
+        if num_frame >= 3000:
             break
