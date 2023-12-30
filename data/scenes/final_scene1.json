@@ -2,7 +2,7 @@
 	"Configuration": 
 	{
         "domainStart": [0.0, 0.0, 0.0],
-        "domainEnd": [2.5, 4.0, 2.5],
+        "domainEnd": [2.5, 7.0, 2.5],
 		"addDomainBox": true,
 		"particleRadius": 0.01,
 		"numberOfStepsPerRenderUpdate": 1,
@@ -11,8 +11,8 @@
 		"simulationMethod": "dfsph",
 		"viscosityMethod": "standard",
 		"timeStepSize": 0.0007,
-		"viscosity": 15.0,
-        "viscosity_b": 1.0,
+		"viscosity": 13.0,
+        "viscosity_b": 0.3,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
 		"exportPly": true,
@@ -22,12 +22,12 @@
 		{
             "objectId": 1,
 			"geometryFile": "./data/models/dragon.obj",
-			"translation": [1.5, 3.1, 1.5],
+			"translation": [1.5, 3.4, 1.5],
 			"rotationAxis": [0, 0, 1],
 			"rotationAngle": 45,
 			"scale": [0.6, 0.6, 0.6],
 			"velocity": [0.0, 0.0, 0.0],
-			"density": 800.0,
+			"density": 900.0,
 			"color": [255, 255, 255], 
 			"isDynamic": true,
 			"entryTime": -1.0
@@ -142,8 +142,8 @@
 	"FluidBlocks": [
 		{
             "objectId": 0,
-			"start": [0.23, 0.09, 0.11],
-			"end": [2.28, 1.4, 2.38],
+			"start": [0.2, 0.09, 0.11],
+			"end": [2.3, 1.4, 2.38],
 			"translation": [0.0, 0.0, 0.0],
 			"scale": [1, 1, 1],
 			"velocity": [0.0, -0.5, 0.0],
