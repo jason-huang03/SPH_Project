@@ -14,6 +14,10 @@ class BaseSolver():
         
         self.g = np.array(self.container.cfg.get_cfg("gravitation"))
 
+        self.g_upper = self.container.cfg.get_cfg("gravitationUpper")
+        if self.g_upper == None:
+            self.g_upper = 10000.0 # a large number
+
 
         self.viscosity_method = self.container.cfg.get_cfg("viscosityMethod")
         self.viscosity = self.container.cfg.get_cfg("viscosity")
@@ -98,10 +102,11 @@ class BaseSolver():
     def compute_rigid_particle_volume(self):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_rigid:
-                ret = self.kernel_W(0.0)
-                self.container.for_all_neighbors(p_i, self.compute_rigid_particle_volumn_task, ret)
-                self.container.particle_rest_volumes[p_i] = 1.0 / ret 
-                self.container.particle_masses[p_i] = self.density_0 * self.container.particle_rest_volumes[p_i]
+                if self.container.particle_positions[p_i][1] <= self.g_upper:
+                    ret = self.kernel_W(0.0)
+                    self.container.for_all_neighbors(p_i, self.compute_rigid_particle_volumn_task, ret)
+                    self.container.particle_rest_volumes[p_i] = 1.0 / ret 
+                    self.container.particle_masses[p_i] = self.density_0 * self.container.particle_rest_volumes[p_i]
 
     @ti.func
     def compute_rigid_particle_volumn_task(self, p_i, p_j, ret: ti.template()):
@@ -542,14 +547,15 @@ class BaseSolver():
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_rigid and self.container.particle_is_dynamic[p_i]:
                 object_id = self.container.particle_object_ids[p_i]
-                center_of_mass = self.container.rigid_body_centers_of_mass[object_id]
-                rotation = self.container.rigid_body_rotations[object_id]
-                velocity = self.container.rigid_body_velocities[object_id]
-                angular_velocity = self.container.rigid_body_angular_velocities[object_id]
-                q = self.container.rigid_particle_original_positions[p_i] - self.container.rigid_body_original_centers_of_mass[object_id]
-                p = rotation @ q
-                self.container.particle_positions[p_i] = center_of_mass + p
-                self.container.particle_velocities[p_i] = velocity + ti.math.cross(angular_velocity, p)
+                if self.container.rigid_body_is_dynamic[object_id]:
+                    center_of_mass = self.container.rigid_body_centers_of_mass[object_id]
+                    rotation = self.container.rigid_body_rotations[object_id]
+                    velocity = self.container.rigid_body_velocities[object_id]
+                    angular_velocity = self.container.rigid_body_angular_velocities[object_id]
+                    q = self.container.rigid_particle_original_positions[p_i] - self.container.rigid_body_original_centers_of_mass[object_id]
+                    p = rotation @ q
+                    self.container.particle_positions[p_i] = center_of_mass + p
+                    self.container.particle_velocities[p_i] = velocity + ti.math.cross(angular_velocity, p)
 
     def renew_rigid_particle_state(self):
         self._renew_rigid_particle_state()
@@ -579,10 +585,23 @@ class BaseSolver():
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
+
+            elif self.container.particle_positions[p_i][1] > self.g_upper:
+                self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
+                if self.container.particle_positions[p_i][1] <= self.g_upper:
+                    self.container.particle_materials[p_i] = self.container.material_fluid
     
+            
+    @ti.kernel
+    def prepare_emitter(self):
+        for p_i in range(self.container.particle_num[None]):
+            if self.container.particle_materials[p_i] == self.container.material_fluid:
+                if self.container.particle_positions[p_i][1] > self.g_upper:
+                    self.container.particle_materials[p_i] = self.container.material_rigid
 
     def prepare(self):
         self.container.insert_object()
+        self.prepare_emitter()
         self.rigid_solver.insert_rigid_object()
         self.renew_rigid_particle_state()
         self.container.prepare_neighborhood_search()

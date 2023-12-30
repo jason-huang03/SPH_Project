@@ -306,14 +306,14 @@ class DFSPHSolver(BaseSolver):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i]
 
-    @ti.kernel
-    def update_fluid_position(self):
-        """
-        update position for each particle from velocity
-        """
-        for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
+    # @ti.kernel
+    # def update_fluid_position(self):
+    #     """
+    #     update position for each particle from velocity
+    #     """
+    #     for p_i in range(self.container.particle_num[None]):
+    #         if self.container.particle_materials[p_i] == self.container.material_fluid:
+    #             self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
 
     def _step(self):
         self.compute_non_pressure_acceleration()

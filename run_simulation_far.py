@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     scene = ti.ui.Scene()
     camera = ti.ui.Camera()
-    camera.position(6.0, 4.0, 6.0)
+    camera.position(6.0, 4.0, 8.0)
     camera.up(0.0, 1.0, 0.0)
     camera.lookat(-1.0, 0.0, 0.0)
     camera.fov(70)
@@ -139,5 +139,5 @@ if __name__ == "__main__":
                         f.write(e)
 
         cnt += 1
-        if num_frame >= 600:
+        if num_frame >= 1200:
             break
