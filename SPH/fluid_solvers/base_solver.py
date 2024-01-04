@@ -14,6 +14,9 @@ class BaseSolver():
         
         self.g = np.array(self.container.cfg.get_cfg("gravitation"))
 
+        # this is used to realize emitter. If a fluid particle is above this height,
+        # we shall make it a rigid particle and fix its speed.
+        # it's an awful hack, but it works. feel free to change it.
         self.g_upper = self.container.cfg.get_cfg("gravitationUpper")
         if self.g_upper == None:
             self.g_upper = 10000.0 # a large number
@@ -269,7 +272,6 @@ class BaseSolver():
     @ti.func
     def compute_b_i_task(self, p_i, p_j, ret: ti.template()):
         # we assume p_i is a fluid particle
-        # TODO: check this function
         if self.container.particle_materials[p_j] == self.container.material_rigid:
             R = self.container.particle_positions[p_i] - self.container.particle_positions[p_j]
             nabla_ij = self.kernel_gradient(R)
@@ -587,19 +589,30 @@ class BaseSolver():
                 self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
 
             elif self.container.particle_positions[p_i][1] > self.g_upper:
-                self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
-                if self.container.particle_positions[p_i][1] <= self.g_upper:
-                    self.container.particle_materials[p_i] = self.container.material_fluid
-    
+                # the emitter part
+                obj_id = self.container.particle_object_ids[p_i]
+                if self.container.object_materials[obj_id] == self.container.material_fluid:
+                    self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
+                    if self.container.particle_positions[p_i][1] <= self.g_upper:
+                        self.container.particle_materials[p_i] = self.container.material_fluid
+        
             
     @ti.kernel
     def prepare_emitter(self):
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 if self.container.particle_positions[p_i][1] > self.g_upper:
+                    # an awful hack to realize emitter
+                    # not elegant but works
+                    # feel free to implement your own emitter
                     self.container.particle_materials[p_i] = self.container.material_rigid
 
+    @ti.kernel
+    def init_object_id(self):
+        self.container.particle_object_ids.fill(-1)
+
     def prepare(self):
+        self.init_object_id()
         self.container.insert_object()
         self.prepare_emitter()
         self.rigid_solver.insert_rigid_object()

@@ -605,6 +605,7 @@ class BaseContainer:
     def dump(self, obj_id):
         np_object_id = self.particle_object_ids.to_numpy()
         mask = (np_object_id == obj_id).nonzero()
+
         np_x = self.particle_positions.to_numpy()[mask]
         np_v = self.particle_velocities.to_numpy()[mask]
 
@@ -647,6 +648,37 @@ class BaseContainer:
         # voxelized_points_np = tm.sample.sample_surface_even(mesh, 4000)[0]
         
         return voxelized_points_np
+
+        # # if you need to fill the mesh with evenly spaced particles, use the following code
+        # # this piece of code is also used to create fluid object from mesh
+        # min_point, max_point = mesh.bounding_box.bounds
+        # num_dim = []
+        # for i in range(self.dim):
+        #     num_dim.append(
+        #         np.arange(min_point[i], max_point[i], pitch))
+        
+        # new_positions = np.array(np.meshgrid(*num_dim,
+        #                                      sparse=False,
+        #                                      indexing='ij'),
+        #                          dtype=np.float32)
+        # new_positions = new_positions.reshape(-1,
+        #                                       reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
+        
+        # print(f"processing {len(new_positions)} points to decide whether they are inside the mesh. This might take a while.")
+        # inside = [False for _ in range(len(new_positions))]
+
+        # # decide whether the points are inside the mesh or not
+        # # TODO: make it parallel or precompute and store
+        # pbar = tqdm(total=len(new_positions))
+        # for i in range(len(new_positions)):
+        #     if mesh.contains([new_positions[i]])[0]:
+        #         inside[i] = True
+        #     pbar.update(1)
+
+        # pbar.close()
+
+        # new_positions = new_positions[inside]
+        # return new_positions
 
     def load_fluid_body(self, rigid_body, pitch=None):
         if pitch is None:

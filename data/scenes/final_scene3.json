@@ -2,7 +2,7 @@
 	"Configuration": 
 	{
         "domainStart": [0.0, 0.0, 0.0],
-        "domainEnd": [4.0, 60.0, 8.0],
+        "domainEnd": [4.0, 20.0, 8.0],
 		"addDomainBox": true,
 		"particleRadius": 0.01,
 		"numberOfStepsPerRenderUpdate": 1,
@@ -12,8 +12,8 @@
 		"gravitation": [0.0, -9.81, 0.0],
 		"gravitationUpper": 2.5,
 		"timeStepSize": 0.001,
-		"viscosity": 2000.0,
-		"viscosity_b": 2000.0,
+		"viscosity": 1800.0,
+		"viscosity_b": 1800.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
 		"exportPly": true,
@@ -21,12 +21,12 @@
 	},
 	"RigidBodies": [
 		{
-            "objectId": 1,
+            "objectId": 2,
 			"geometryFile": "./data/models/cookie_bar_small.obj",
-			"translation": [1.5, 0.05, 2.5],
+			"translation": [1.5, 0.05, 3.0],
 			"rotationAxis": [0, 1, 0],
 			"rotationAngle": 0.0,
-			"scale": [1, 1, 1],
+			"scale": [1, 1, 1.5],
 			"velocity": [0.0, 0.0, 0.0],
 			"density": 1000.0,
 			"color": [255, 255, 255], 
@@ -37,11 +37,22 @@
 	"FluidBlocks": [
 		{
             "objectId": 0,
-			"start": [1.05, 2.3, 1.2],
-			"end": [1.95, 58.0, 1.28],
+			"start": [1.12, 1.0, 1.0],
+			"end": [1.88, 12.2, 1.08],
 			"translation": [0.0, 0.0, 0.0],
 			"scale": [1, 1, 1],
-			"velocity": [0.0, -3.0, 0.11],
+			"velocity": [0.0, -2.2, 0.75],
+			"density": 1000.0,
+			"color": [50, 100, 200],
+			"entryTime": -1.0
+		},
+		{
+            "objectId": 1,
+			"start": [1.2, 1.0, 1.15],
+			"end": [1.8, 11.4, 1.23],
+			"translation": [0.0, 0.0, 0.0],
+			"scale": [1, 1, 1],
+			"velocity": [0.0, -2.2, 0.75],
 			"density": 1000.0,
 			"color": [50, 100, 200],
 			"entryTime": -1.0

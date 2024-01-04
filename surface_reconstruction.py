@@ -14,6 +14,8 @@ def process_frame(frame_dir, args):
     ply_list = [f for f in files if f.endswith(".ply")]
 
     for ply_file in ply_list:
+        # note here we do reconstruction for each fluid object seperatedly. 
+        # you might need to reconstruct some fluid objects together as a single object. Modify the code here if needed.
         ply_path = os.path.join(frame_dir, ply_file)
         output_path = ply_path.replace(".ply", ".obj")
         # run the command
