@@ -1,4 +1,0 @@
-#!/bin/bash
-
-CUDA_VISIBLE_DEVICES=0 python run_simulation_far.py --scene data/scenes/final_scene1.json
-python surface_reconstruction.py --input_dir final_scene1_output --num_workers 3
