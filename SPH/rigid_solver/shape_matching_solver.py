@@ -2,6 +2,7 @@ import taichi as ti
 import numpy as np
 from ..containers import BaseContainer
 
+# this script is not used in the project
 @ti.data_oriented
 class ShapeMatchingRigidSolver():
     def __init__(self, dt, container: BaseContainer):

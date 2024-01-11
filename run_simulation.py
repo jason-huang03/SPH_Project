@@ -19,9 +19,21 @@ if __name__ == "__main__":
     config = SimConfig(scene_file_path=scene_path)
     scene_name = scene_path.split("/")[-1].split(".")[0]
 
-    substeps = config.get_cfg("numberOfStepsPerRenderUpdate")
     output_frames = config.get_cfg("exportFrame")
-    output_interval = max(int(0.016 / config.get_cfg("timeStepSize")), 1)
+
+    fps = config.get_cfg("fps")
+    if fps == None:
+        fps = 60
+
+    frame_time = 1.0 / fps
+
+    output_interval = int(frame_time / config.get_cfg("timeStepSize"))
+
+    total_time = config.get_cfg("totalTime")
+    if total_time == None:
+        total_time = 10.0
+
+    total_rounds = int(total_time / config.get_cfg("timeStepSize"))
     
     if config.get_cfg("outputInterval"):
         output_interval = config.get_cfg("outputInterval")
@@ -57,6 +69,7 @@ if __name__ == "__main__":
     window = ti.ui.Window('SPH', (1024, 1024), show_window = False, vsync=False)
 
     scene = ti.ui.Scene()
+    # feel free to adjust the position of the camera as needed
     camera = ti.ui.Camera()
     camera.position(5.5, 2.5, 4.0)
     camera.up(0.0, 1.0, 0.0)
@@ -100,8 +113,7 @@ if __name__ == "__main__":
     cnt_ply = 0
 
     while window.running:
-        for i in range(substeps):
-            solver.step()
+        solver.step()
         container.copy_to_vis_buffer(invisible_objects=invisible_objects, dim=dim)
         if container.dim == 2:
             canvas.set_background_color(background_color)
@@ -137,5 +149,8 @@ if __name__ == "__main__":
                         f.write(e)
 
         cnt += 1
-        # if cnt > 6000:
-        #     break
+
+        if cnt >= total_rounds:
+            break
+
+    print(f"Simulation Finished")

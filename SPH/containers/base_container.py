@@ -25,8 +25,7 @@ class BaseContainer:
         self.dim = len(self.domain_size)
         print(f"Dimension: {self.dim}")
 
-        # Material
-        # 0 indicates the object does not exist
+        # Material 0 indicates the object does not exist
         self.material_rigid = 2
         self.material_fluid = 1
 
@@ -73,7 +72,7 @@ class BaseContainer:
         self.present_object = []
 
         #========== Compute number of particles ==========#
-        #### Process Fluid Bodies from Mesh####
+        #### Process Fluid Bodies from Mesh ####
         fluid_particle_num = 0
         rigid_body_particle_num = 0
 
@@ -119,8 +118,13 @@ class BaseContainer:
             + rigid_body_particle_num 
             + (self.compute_box_particle_num(self.domain_box_start, self.domain_box_size, space=self.particle_spacing, thickness=self.domain_box_thickness) if self.add_domain_box else 0)
         )
-
+        
         print(f"Fluid particle num: {self.fluid_particle_num}, Rigid body particle num: {self.rigid_body_particle_num}")
+
+
+        self.fluid_particle_num = ti.field(int, shape=())
+
+
 
         #========== Allocate memory ==========#
         # Particle num of each grid
@@ -145,9 +149,6 @@ class BaseContainer:
 
         self.object_materials = ti.field(dtype=int, shape=self.max_num_object)
 
-        # Rigid body related properties
-        # self.rigid_body_num = ti.field(dtype=int, shape=()) # TODO: make it able to grow
-        # self.rigid_body_num[None] = num_rigid_bodies
         self.object_num = ti.field(dtype=int, shape=())
         self.object_num[None] = num_fluid_object + num_rigid_object + (1 if self.add_domain_box else 0) # add 1 for domain box object
 
@@ -285,6 +286,7 @@ class BaseContainer:
                                  np.stack([color for _ in range(num_particles_obj)]))
 
             self.present_object.append(obj_id)
+            self.fluid_particle_num[None] += num_particles_obj
 
         # Rigid body
         for rigid_body in self.rigid_bodies:
@@ -478,23 +480,18 @@ class BaseContainer:
         
         return ret
     
-
-    
     @ti.func
     def get_flatten_grid_index(self, pos):
         return self.flatten_grid_index(self.pos_to_index(pos))
     
-
     @ti.func
     def is_static_rigid_body(self, p):
         return self.particle_materials[p] == self.material_rigid and (not self.particle_is_dynamic[p])
-
 
     @ti.func
     def is_dynamic_rigid_body(self, p):
         return self.particle_materials[p] == self.material_rigid and self.particle_is_dynamic[p]
     
-
     @ti.kernel
     def init_grid(self):
         self.grid_num_particles.fill(0)
@@ -544,13 +541,11 @@ class BaseContainer:
             self.particle_colors[p_i] = self.particle_colors_buffer[p_i]
             self.particle_is_dynamic[p_i] = self.is_dynamic_buffer[p_i]
 
-
     def prepare_neighborhood_search(self):
         self.init_grid()
         self.prefix_sum_executor.run(self.grid_num_particles)
         self.reorder_particles()
     
-
     @ti.func
     def for_all_neighbors(self, p_i, task: ti.template(), ret: ti.template()):
         center_cell = self.pos_to_index(self.particle_positions[p_i])
@@ -583,7 +578,6 @@ class BaseContainer:
         self.x_vis_buffer.fill(0.0)
         self.color_vis_buffer.fill(0.0)
 
-
     @ti.kernel
     def _copy_to_vis_buffer_2d(self, obj_id: int):
         assert self.GGUI
@@ -614,7 +608,6 @@ class BaseContainer:
             'velocity': np_v
         }
     
-
     def load_rigid_body(self, rigid_body, pitch=None):
         if pitch is None:
             pitch = self.particle_diameter
@@ -757,7 +750,6 @@ class BaseContainer:
         new_positions = new_positions[mask]
         return new_positions.shape[0]
 
-
     def add_cube(self,
                  object_id,
                  lower_corner,
@@ -803,6 +795,8 @@ class BaseContainer:
         pressure_arr = np.full_like(np.zeros(num_new_particles, dtype=np.float32), pressure if pressure is not None else 0.)
         self.add_particles(object_id, num_new_particles, new_positions, velocity_arr, density_arr, pressure_arr, material_arr, is_dynamic_arr, color_arr)
 
+        if material == self.material_fluid:
+            self.fluid_particle_num[None] += num_new_particles
 
     def add_box(self,
                  object_id,

@@ -16,8 +16,8 @@
 		"viscosity_b": 1800.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
-		"exportPly": true,
-		"exportObj": true
+		"exportPly": false,
+		"exportObj": false
 	},
 	"RigidBodies": [
 		{

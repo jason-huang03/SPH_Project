@@ -16,50 +16,9 @@
 		"viscosity_b": 800.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
-		"exportPly": true,
-		"exportObj": true
+		"exportPly": false,
+		"exportObj": false
 	},
-	"RigidBodies": [
-		{
-            "objectId": 3,
-			"geometryFile": "./data/models/X.obj",
-			"translation": [0.6, 1.0, 0.55],
-			"rotationAxis": [0, 1, 0],
-			"rotationAngle": 15.0,
-			"scale": [1.5, 1.6, 1.5],
-			"velocity": [0.0, 0.0, 0.0],
-			"density": 2000.0,
-			"color": [255, 255, 255], 
-			"isDynamic": true,
-			"entryTime": 11.5
-		},
-		{
-            "objectId": 4,
-			"geometryFile": "./data/models/Y.obj",
-			"translation": [1.35, 1.0, 0.55],
-			"rotationAxis": [0, 1, 0],
-			"rotationAngle": 7.0,
-			"scale": [1.5, 1.6, 1.5],
-			"velocity": [0.0, 0.0, 0.0],
-			"density": 2000.0,
-			"color": [255, 255, 255], 
-			"isDynamic": true,
-			"entryTime": 12.0
-		},
-		{
-            "objectId": 5,
-			"geometryFile": "./data/models/P.obj",
-			"translation": [2.05, 1.0, 0.55],
-			"rotationAxis": [0, 1, 0],
-			"rotationAngle": 0.0,
-			"scale": [1.5, 1.6, 1.5],
-			"velocity": [0.0, 0.0, 0.0],
-			"density": 2000.0,
-			"color": [255, 255, 255], 
-			"isDynamic": true,
-			"entryTime":12.5
-		}
-    ],
 	"FluidBlocks": [
 		{
             "objectId": 0,

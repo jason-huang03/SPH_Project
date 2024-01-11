@@ -3,15 +3,17 @@
 	{
         "domainStart": [0.0, 0.0, 0.0],
         "domainEnd": [5.0, 3.0, 2.0],
-		"addDomainBox": false,
+		"addDomainBox": true,
 		"particleRadius": 0.01,
-		"numberOfStepsPerRenderUpdate": 1,
+		"fps": 30.0,
+		"totalTime": 8.0,
 		"density0": 1000, 
+		"gravitation": [0.0, -9.81, 0.0],
 		"simulationMethod": "pcisph",
 		"viscosityMethod": "standard",
-		"gravitation": [0.0, -9.81, 0.0],
-		"timeStepSize": 0.0006,
+		"timeStepSize": 0.0008,
 		"viscosity": 10.0,
+		"viscosity_b": 5.0,
 		"boundaryHandlingMethod": 0,
 		"exportFrame": true,
 		"exportPly": false,
@@ -20,26 +22,26 @@
 	"RigidBodies": [
 		{
             "objectId": 0,
-			"geometryFile": "./data/models/Dragon_50k.obj",
-			"translation": [2.2, 0.13, 1.0],
+			"geometryFile": "./data/models/dragon.obj",
+			"translation": [2.2, 0.35, 1.0],
 			"rotationAxis": [0, 1, 0],
 			"rotationAngle": 90,
 			"scale": [1, 1, 1],
 			"velocity": [0.0, 0.0, 0.0],
-			"density": 1000.0,
+			"density": 2200.0,
 			"color": [255, 255, 255], 
 			"isDynamic": true,
 			"entryTime": -1.0
 		},
 		{
             "objectId": 1,
-			"geometryFile": "./data/models/Dragon_50k.obj",
-			"translation": [2.8, 0.13, 1.0],
+			"geometryFile": "./data/models/dragon.obj",
+			"translation": [2.8, 0.35, 1.0],
 			"rotationAxis": [0, 1, 0],
 			"rotationAngle": 90,
 			"scale": [1, 1, 1],
 			"velocity": [0.0, 0.0, 0.0],
-			"density": 4000.0,
+			"density": 2500.0,
 			"color": [255, 255, 255], 
 			"isDynamic": true,
 			"entryTime": -1.0
@@ -60,4 +62,3 @@
 		}
 	]
 }
-

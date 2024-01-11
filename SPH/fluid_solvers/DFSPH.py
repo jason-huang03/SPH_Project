@@ -19,7 +19,6 @@ class DFSPHSolver(BaseSolver):
         self.max_error_V = 0.001
         self.max_error = 0.0001
     
-
     @ti.kernel
     def compute_alpha(self):
         for p_i in range(self.container.particle_num[None]):
@@ -45,9 +44,9 @@ class DFSPHSolver(BaseSolver):
                 factor = 0.0
             self.container.particle_dfsph_alphas[p_i] = factor
             
-
     @ti.func
     def compute_alpha_task(self, p_i, p_j, ret: ti.template()):
+        # here we use partilce rest volume instead of mass
         if self.container.particle_materials[p_j] == self.container.material_fluid:
             # Fluid neighbors
             grad_p_j = -self.container.particle_rest_volumes[p_j] * self.kernel_gradient(self.container.particle_positions[p_i] - self.container.particle_positions[p_j])
@@ -90,6 +89,7 @@ class DFSPHSolver(BaseSolver):
 
     @ti.func
     def compute_density_derivative_task(self, p_i, p_j, ret: ti.template()):
+        # here we use partilce rest volume instead of mass
         # Fluid neighbor and rigid neighbor are treated the same
         v_i = self.container.particle_velocities[p_i]
         v_j = self.container.particle_velocities[p_j]
@@ -116,6 +116,7 @@ class DFSPHSolver(BaseSolver):
 
     @ti.func
     def compute_density_star_task(self, p_i, p_j, ret: ti.template()):
+        # here we use partilce rest volume instead of mass
         # Fluid neighbor and rigid neighbor are treated the same
         v_i = self.container.particle_velocities[p_i]
         v_j = self.container.particle_velocities[p_j]
@@ -130,6 +131,7 @@ class DFSPHSolver(BaseSolver):
     ################# Divergence Free Solver #################
     @ti.kernel
     def compute_kappa_v(self):
+        # note we do not divide delta_t here
         for idx_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[idx_i] == self.container.material_fluid:
                 self.container.particle_dfsph_kappa_v[idx_i] = self.container.particle_densities_derivatives[idx_i] * self.container.particle_dfsph_alphas[idx_i] 
@@ -214,13 +216,13 @@ class DFSPHSolver(BaseSolver):
     ################# Constant Density Solver #################
     @ti.kernel
     def compute_kappa(self):
+        # note we only divide delta_t once here
         delta_t_inv = 1 / (self.dt[None])
         for idx_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[idx_i] == self.container.material_fluid:
                 self.container.particle_dfsph_kappa[idx_i] = (self.container.particle_densities_star[idx_i] - 1.0) * self.container.particle_dfsph_alphas[idx_i] * delta_t_inv
 
     def correct_density_error(self):
-        # TODO: warm start
         self.compute_density_star()
         num_itr = 0
 
@@ -239,11 +241,7 @@ class DFSPHSolver(BaseSolver):
             if average_density_error <= eta:
                 break
         print(f"DFSPH - iterations: {num_itr} Avg density Err: {average_density_error * self.density_0:.4f}")
-        # Multiply by h, the time step size has to be removed 
-        # to make the stiffness value independent 
-        # of the time step size
 
-    
     @ti.kernel
     def correct_density_error_step(self):
         # Compute pressure forces
@@ -296,24 +294,6 @@ class DFSPHSolver(BaseSolver):
         return density_error / self.container.particle_num[None]
 
     ################# End of Constant Density Solver #################
-
-    @ti.kernel
-    def update_fluid_velocity(self):
-        """
-        update velocity for each particle from acceleration
-        """
-        for p_i in range(self.container.particle_num[None]):
-            if self.container.particle_materials[p_i] == self.container.material_fluid:
-                self.container.particle_velocities[p_i] += self.dt[None] * self.container.particle_accelerations[p_i]
-
-    # @ti.kernel
-    # def update_fluid_position(self):
-    #     """
-    #     update position for each particle from velocity
-    #     """
-    #     for p_i in range(self.container.particle_num[None]):
-    #         if self.container.particle_materials[p_i] == self.container.material_fluid:
-    #             self.container.particle_positions[p_i] += self.dt[None] * self.container.particle_velocities[p_i]
 
     def _step(self):
         self.compute_non_pressure_acceleration()
