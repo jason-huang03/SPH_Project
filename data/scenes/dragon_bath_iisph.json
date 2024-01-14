@@ -1,0 +1,37 @@
+{
+	"Configuration": 
+	{
+        "domainStart": [0.0, 0.0, 0.0],
+        "domainEnd": [5.0, 3.0, 2.0],
+		"addDomainBox": true,
+		"particleRadius": 0.01,
+		"fps": 30.0,
+		"totalTime": 8.0,
+		"density0": 1000, 
+		"gravitation": [0.0, -9.81, 0.0],
+		"simulationMethod": "iisph",
+		"viscosityMethod": "standard",
+		"timeStepSize": 0.0008,
+		"viscosity": 10.0,
+		"viscosity_b": 5.0,
+		"boundaryHandlingMethod": 0,
+		"exportFrame": true,
+		"exportPly": false,
+		"exportObj": false
+	},
+
+
+	"FluidBlocks": [
+		{
+            "objectId": 0,
+			"start": [0.3, 0.2, 0.5],
+			"end": [1.2, 2.8, 1.6],
+			"translation": [0.2, 0.0, 0.2],
+			"scale": [1, 1, 1],
+			"velocity": [0.0, -1.0, 0.0],
+			"density": 1000.0,
+			"color": [50, 100, 200],
+			"entryTime": -1.0
+		}
+	]
+}

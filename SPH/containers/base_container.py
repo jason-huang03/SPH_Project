@@ -779,7 +779,6 @@ class BaseContainer:
                                  dtype=np.float32)
         new_positions = new_positions.reshape(-1,
                                               reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
-        print("new position shape ", new_positions.shape)
 
         num_new_particles = new_positions.shape[0]
 

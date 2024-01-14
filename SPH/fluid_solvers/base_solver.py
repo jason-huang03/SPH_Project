@@ -166,7 +166,8 @@ class BaseSolver():
             den_j = self.density_0
             acc = (
                 - self.density_0 * self.container.particle_rest_volumes[p_j] 
-                * (self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * nabla_ij
+                * self.container.particle_pressures[p_i] / (den_i * den_i)
+                * nabla_ij
             )
             ret += acc
 
@@ -176,7 +177,8 @@ class BaseSolver():
                 center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
                 force_j = (
                     self.density_0 * self.container.particle_rest_volumes[p_j] 
-                    *(self.container.particle_pressures[p_i] / (den_i * den_i) + self.container.particle_pressures[p_i] / (den_j * den_j)) * nabla_ij
+                    * self.container.particle_pressures[p_i] / (den_i * den_i)
+                    * nabla_ij
                     * (self.density_0 * self.container.particle_rest_volumes[p_i])
                 )
 

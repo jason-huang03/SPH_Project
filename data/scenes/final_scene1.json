@@ -5,6 +5,8 @@
         "domainEnd": [2.5, 7.0, 2.5],
 		"addDomainBox": true,
 		"particleRadius": 0.01,
+		"fps": 60.0,
+		"totalTime": 10.0,
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
 		"gravitation": [0.0, -9.81, 0.0],

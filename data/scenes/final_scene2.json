@@ -5,6 +5,8 @@
         "domainEnd": [5.0, 6.0, 5.0],
 		"addDomainBox": true,
 		"particleRadius": 0.01,
+		"fps": 60.0,
+		"totalTime": 40.0,
 		"numberOfStepsPerRenderUpdate": 1,
 		"density0": 1000, 
 		"simulationMethod": "dfsph",

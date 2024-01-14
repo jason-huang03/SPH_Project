@@ -3,8 +3,8 @@ import argparse
 import taichi as ti
 import numpy as np
 from SPH.utils import SimConfig
-from SPH.containers import DFSPHContainer, WCSPHContainer, PCISPHContainer, PBFContainer
-from SPH.fluid_solvers import DFSPHSolver, WCSPHSolver, PCISPHSolver, PBFSolver
+from SPH.containers import DFSPHContainer, WCSPHContainer, PCISPHContainer, PBFContainer, IISPHContainer
+from SPH.fluid_solvers import DFSPHSolver, WCSPHSolver, PCISPHSolver, PBFSolver, IISPHSolver
 
 ti.init(arch=ti.gpu, device_memory_fraction=0.8)
 
@@ -54,7 +54,8 @@ if __name__ == "__main__":
         container = PCISPHContainer(config, GGUI=True)
         solver = PCISPHSolver(container)
     elif simulation_method == "iisph":
-        raise NotImplementedError("IISPH is not implemented yet")
+        container = IISPHContainer(config, GGUI=True)
+        solver = IISPHSolver(container)
     elif simulation_method == "pbf":
         container = PBFContainer(config, GGUI=True)
         solver = PBFSolver(container)

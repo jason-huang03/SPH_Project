@@ -74,8 +74,6 @@ class PCISPHSolver(BaseSolver):
     @ti.kernel
     def compute_temp_pressure_acceleration(self):
         self.container.particle_pressure_accelerations.fill(0.0)
-        self.container.rigid_body_pressure_forces.fill(0.0)
-        self.container.rigid_body_pressure_torques.fill(0.0)
         for p_i in range(self.container.particle_num[None]):
             if self.container.particle_materials[p_i] == self.container.material_fluid:
                 ret_i = ti.Vector([0.0 for _ in range(self.container.dim)])
@@ -107,20 +105,6 @@ class PCISPHSolver(BaseSolver):
                 - self.density_0 * self.container.particle_rest_volumes[p_j] 
                 * (self.container.particle_pressures[p_i] / (den_i * den_i)) * nabla_ij
             )
-
-            if self.container.particle_is_dynamic[p_j]:
-                # add force and torque to rigid body
-                object_j = self.container.particle_object_ids[p_j]
-                center_of_mass_j = self.container.rigid_body_centers_of_mass[object_j]
-                force_j = (
-                    self.density_0 * self.container.particle_rest_volumes[p_j] 
-                    *(self.container.particle_pressures[p_i] / (den_i * den_i)) * nabla_ij
-                    * (self.density_0 * self.container.particle_rest_volumes[p_i])
-                )
-
-                torque_j = ti.math.cross(pos_i - center_of_mass_j, force_j)
-                self.container.rigid_body_pressure_forces[object_j] += force_j
-                self.container.rigid_body_pressure_torques[object_j] += torque_j
 
 
     def refine(self):
@@ -170,8 +154,6 @@ class PCISPHSolver(BaseSolver):
     def init_step(self):
         self.container.particle_pressure_accelerations.fill(0.0)
         self.container.particle_pressures.fill(0.0)
-        self.container.rigid_body_pressure_forces.fill(0.0)
-        self.container.rigid_body_pressure_torques.fill(0.0)
         self.container.density_error[None] = 100.0
 
         for p_i in range(self.container.particle_num[None]):
@@ -188,6 +170,7 @@ class PCISPHSolver(BaseSolver):
         self.refine() # compute correct pressure here
 
         # same procedure as WCSPH
+        # use pressure to compute acceleration for fluid and rigid body
         self.update_fluid_velocity()
         self.compute_pressure_acceleration()
         self.update_fluid_velocity()

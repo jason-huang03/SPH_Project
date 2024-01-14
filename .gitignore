@@ -1,6 +1,5 @@
 __pycache__
-*output_img
-*output
+*output*
 video*?.mp4
 video.mp4
 temp.py
