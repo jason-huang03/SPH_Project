@@ -13,6 +13,11 @@
 
 + [Versatile Rigid-Fluid Coupling for Incompressible SPH](https://dl.acm.org/doi/10.1145/2185520.2185558)
 
+### ✨ Viscosity
+
++ [Standard Viscosity](https://iopscience.iop.org/article/10.1088/0034-4885/68/8/R01)
++ [A Physically Consistent Implicit Viscosity Solver for SPH Fluids](https://onlinelibrary.wiley.com/doi/abs/10.1111/cgf.13349)
+
 ### ✨ Rigid Solver
 
 + [Bullet Physics Engine](https://github.com/bulletphysics/bullet3)
@@ -147,16 +152,14 @@ The rendering script can put rendering jobs on multiple gpus.  You can set `CUDA
 
 
 
-## TODO
+## Future Work
 
-- [ ] IISPH
-- [ ] check implementation of PCISPH
-- [ ] PBF 3D parameter tuning
-- [x] check whether rigid-fluid coupling is correct in every algorithm
-- [x] model boundary for fluid as static rigid body
-- [ ] interactable 2D scene
-- [x] better viscosity modeling
-- [x] rendering with blender
++ Correct implementation of [Implicit Incompressible SPH](https://ieeexplore.ieee.org/document/6570475)
++ Integration of [Position Based Fluids](https://dl.acm.org/doi/10.1145/2461912.2461984)
++ Strong rigid-fluid coupling following [Interlinked SPH Pressure Solvers for Strong Fluid-Rigid Coupling](https://dl.acm.org/doi/10.1145/3284980)
+
+
+
 
 ## Acknowledgements
 
@@ -165,6 +168,7 @@ This project is built upon the following repositories:
 + [Taichi](https://github.com/taichi-dev/taichi)
 + [Bullet](https://github.com/bulletphysics/bullet3)
 + [SPH Taichi](https://github.com/erizmr/SPH_Taichi)
++ [SPlisHSPlasH](https://github.com/InteractiveComputerGraphics/SPlisHSPlasH)
 + [Splash Surf](https://github.com/InteractiveComputerGraphics/splashsurf)
 + [Blender](https://www.blender.org/)
 
