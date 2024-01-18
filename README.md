@@ -1,4 +1,15 @@
-# SPH Realization of Fluid Simulation
+# SPH Fluid Simulation
+
+A unified framework of SPH fluid simulation implemented in [Taichi](https://github.com/taichi-dev/taichi). 
+
+<figure align="center">
+  <img src="./pipeline.png" alt="pipeline of our framework" width="96%">
+  <figcaption>Detailed workflow of our SPH simulation framework.</figcaption>
+</figure>
+
+This diagram illustrates the step-by-step process of our SPH simulation pipeline. It begins with the "Prepare Scene" phase, where users define fluid and rigid body properties, along with simulation parameters. The "Simulation" phase is next, showcasing the sequential application of gravitational, viscous, and pressure forces, followed by the dynamic updates of fluid and rigid bodies, incorporating various solvers for viscosity ([standard](https://iopscience.iop.org/article/10.1088/0034-4885/68/8/R01) and [implicit](https://onlinelibrary.wiley.com/doi/abs/10.1111/cgf.13349)) and pressure ([WCSPH](https://dl.acm.org/doi/10.5555/1272690.1272719), [PCISPH](https://dl.acm.org/doi/10.1145/1576246.1531346) and [DFSPH](https://dl.acm.org/doi/10.1145/2786784.2786796)) management. The final "Post-Processing" phase involves surface reconstruction of fluid particles using [SplashSurf](https://github.com/InteractiveComputerGraphics/splashsurf) and rendering the scene in [Blender](https://www.blender.org/), utilizing Blender's rich community resources for scene creation. We faced challenges in correctly implementing [IISPH](https://doi.org/10.1109/TVCG.2013.105) and integrating [PBF](https://doi.org/10.1145/2461912.2461984) into our unified framework. 
+
+
 
 ## Features
 
@@ -6,7 +17,6 @@
 
 + [Weakly compressible SPH for free surface flows (WCSPH)](https://dl.acm.org/doi/10.5555/1272690.1272719)
 + [Predictive-Corrective Incompressible SPH (PCISPH)](https://dl.acm.org/doi/10.1145/1576246.1531346)
-+ [Position Based Fluids (PBF)](https://dl.acm.org/doi/10.1145/2461912.2461984)
 + [Divergence-Free Smoothed Particle Hydrodynamics (DFSPH)](https://dl.acm.org/doi/10.1145/2786784.2786796)
 
 ### ✨ Fluid-Rigid Interaction Force
@@ -36,37 +46,44 @@
 
 ### Large Scale Fluid Simulation
 
-<p align="center">
-<img src="./examples/large_scale_fluid.gif" alt="Large scale fluid simulation with over a million particles" width="96%">
-</p>
+<figure align="center">
+  <img src="./examples/large_scale_fluid.gif" alt="Large scale fluid simulation with over a million particles" width="96%">
+  <figcaption>Large scale fluid simulation of fluid consisting of 1.23M particles.</figcaption>
+</figure>
+
 
 
 ## Rigid-Fluid Coupling
 
-<p align="center">
-<img src="./examples/coupling.gif" alt="Rigid-fluid coupling" width="96%">
-</p>
+<figure align="center">
+  <img src="./examples/coupling.gif" alt="Rigid-fluid coupling="96%">
+  <figcaption>Simulation of one fluid object and nine rigid objects in a confined space.</figcaption>
+</figure>
 
 
 ## High Viscosity Fluid
 
-<p align="center">
-<img src="./examples/high_viscosity_fluid.gif" alt="Fluid with extremely high viscosity" width="96%">
-</p>
+<figure align="center">
+  <img src="./examples/high_viscosity_fluid.gif" alt="Fluid with extremely high viscosity" width="96%">
+  <figcaption>Simulation of fluid with extremely high viscosity.</figcaption>
+</figure>
 
 
 ## Buckling Effect
 
-<p align="center">
-<img src="./examples/buckling_effect.gif" alt="Realistic simulation of buckling effect" width="96%">
-</p>
+<figure align="center">
+  <img src="./examples/buckling_effect.gif" alt="Realistic simulation of buckling effect" width="96%">
+  <figcaption>Simulation of buckling effect.</figcaption>
+</figure>
+
 
 
 ## Coiling Effect
 
-<p align="center">
-<img src="./examples/coiling_effect.gif" alt="Realistic simulation of coiling effect" width="96%">
-</p>
+<figure align="center">
+  <img src="./examples/coiling_effect.gif" alt="Realistic simulation of coiling effect" width="96%">
+  <figcaption>Simulation of coiling effect.</figcaption>
+</figure>
 
 
 
