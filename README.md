@@ -30,6 +30,46 @@
 
 + [Blender](https://www.blender.org/)
 
+
+
+## Heighlights
+
+### Large Scale Fluid Simulation
+
+<p align="center">
+<img src="./examples/large_scale_fluid.gif" alt="Large scale fluid simulation with over a million particles" width="96%">
+</p>
+
+
+## Rigid-Fluid Coupling
+
+<p align="center">
+<img src="./examples/coupling.gif" alt="Rigid-fluid coupling" width="96%">
+</p>
+
+
+## High Viscosity Fluid
+
+<p align="center">
+<img src="./examples/high_viscosity_fluid.gif" alt="Fluid with extremely high viscosity" width="96%">
+</p>
+
+
+## Buckling Effect
+
+<p align="center">
+<img src="./examples/buckling_effect.gif" alt="Realistic simulation of buckling effect" width="96%">
+</p>
+
+
+## Coiling Effect
+
+<p align="center">
+<img src="./examples/coiling_effect.gif" alt="Realistic simulation of coiling effect" width="96%">
+</p>
+
+
+
 ## Installation on Linux
 
 ### Python Environment
