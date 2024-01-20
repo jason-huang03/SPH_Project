@@ -1,6 +1,6 @@
 # SPH Fluid Simulation
 
-A unified framework of SPH fluid simulation implemented in [Taichi](https://github.com/taichi-dev/taichi). 
+A unified framework of SPH fluid simulation implemented in [Taichi](https://github.com/taichi-dev/taichi). You can find [full demo](https://www.bilibili.com/video/BV1Fc411x7xy/?vd_source=0c4001b369e3d40b8a7038b31be5f1b2) on bilibili.
 
 <figure align="center">
   <img src="./pipeline.png" alt="pipeline of our framework" width="96%">
