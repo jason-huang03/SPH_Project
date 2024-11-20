@@ -231,3 +231,18 @@ This project is built upon the following repositories:
 + [Blender](https://www.blender.org/)
 
 We thank all contributors of these repositories for their great work and open source spirit.
+
+## Citation
+If you use this code or find our work valuable, please cite:
+```
+@misc{huang2024journeysphsimulationcomprehensive,
+      title={Journey into SPH Simulation: A Comprehensive Framework and Showcase}, 
+      author={Haofeng Huang and Li Yi},
+      year={2024},
+      eprint={2403.11156},
+      archivePrefix={arXiv},
+      primaryClass={physics.flu-dyn},
+      url={https://arxiv.org/abs/2403.11156}, 
+}
+
+```
